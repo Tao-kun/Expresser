@@ -21,9 +21,7 @@ set(LIB_FILES
         Parser/Parser.cpp)
 
 set(MAIN_FILES
-        ${LIB_FILES}
         main.cpp)
-
 
 # Target File
 add_library(${PROJECT_LIB} ${LIB_FILES})

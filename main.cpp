@@ -1,4 +1,3 @@
-#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include "argparse.hpp"
@@ -25,12 +24,13 @@ int main(int argc, char **argv) {
             .implicit_value(true)
             .help("Binary");
     arg.add_argument("-o", "--output")
+            .default_value(std::string(""))
             .help("Output file");
     try {
         arg.parse_args(argc, argv);
     }
     catch (const std::runtime_error &err) {
-        ::fprintf(stderr, "Argument Error %s\n\n", err.what());
+        std::cerr << "Argument Error " << err.what() << std::endl;
         std::cout << arg;
         exit(2);
     }
@@ -42,12 +42,12 @@ int main(int argc, char **argv) {
     std::ifstream infs;
     std::ofstream outfs;
     if (input_file.empty()) {
-        ::fprintf(stderr, "No input file\n\n");
+        std::cerr << "No input file" << std::endl;
         exit(3);
     } else {
         infs.open(input_file, std::ios::in);
         if (!infs) {
-            ::fprintf(stderr, "Open file %s error\n\n", input_file.c_str());
+            std::cerr << "Open file " << input_file << " error" << std::endl;
             exit(3);
         }
         input = &infs;
@@ -58,13 +58,13 @@ int main(int argc, char **argv) {
     }
     outfs.open(output_file, std::ios::out | std::ios::trunc);
     if (!outfs) {
-        ::fprintf(stderr, "Create file %s error\n\n", output_file.c_str());
+        std::cerr << "Create file " << output_file << " error" << std::endl;
         exit(3);
     }
     output = &outfs;
 
     if (arg["-s"] == true && arg["-c"] == true) {
-        ::fprintf(stderr, "Cannot run lexer and parser at once\n");
+        std::cerr << "Cannot run lexer and parser at once" << std::endl;
         exit(2);
     }
     if (arg["-s"] == true) {
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
     } else if (arg["-c"] == true) {
         binary(*input, *output);
     } else {
-        ::fprintf(stderr, "Must choose running lexer or parser\n");
+        std::cerr << "Must choose running lexer or parser" << std::endl;
     }
     return 0;
 }
