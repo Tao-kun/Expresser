@@ -3,11 +3,11 @@
 #include <iostream>
 #include "argparse.hpp"
 
-void lexer(std::istream &_input, std::ostream &_output) {
+void assembly(std::istream &_input, std::ostream &_output) {
 
 }
 
-void parser(std::istream &_input, std::ostream &_output) {
+void binary(std::istream &_input, std::ostream &_output) {
 
 }
 
@@ -16,22 +16,21 @@ int main(int argc, char **argv) {
     arg.add_argument("input")
             .required()
             .help("Source code file");
-    arg.add_argument("-l")
+    arg.add_argument("-s")
             .default_value(false)
             .implicit_value(true)
-            .help("Lexer");
-    arg.add_argument("-p")
+            .help("Assembly");
+    arg.add_argument("-c")
             .default_value(false)
             .implicit_value(true)
-            .help("Parser");
+            .help("Binary");
     arg.add_argument("-o", "--output")
-            .default_value(std::string("-"))
             .help("Output file");
     try {
         arg.parse_args(argc, argv);
     }
     catch (const std::runtime_error &err) {
-        ::fprintf(stderr, "%s\n\n", err.what());
+        ::fprintf(stderr, "Argument Error %s\n\n", err.what());
         std::cout << arg;
         exit(2);
     }
@@ -53,25 +52,25 @@ int main(int argc, char **argv) {
         }
         input = &infs;
     }
-    if (output_file.empty() || output_file == "-") {
-        output = &std::cout;
-    } else {
-        outfs.open(output_file, std::ios::out | std::ios::trunc);
-        if (!outfs) {
-            ::fprintf(stderr, "Create file %s error\n\n", output_file.c_str());
-            exit(3);
-        }
-        output = &outfs;
-    }
 
-    if (arg["-l"] == true && arg["-p"] == true) {
+    if (output_file.empty()) {
+        output_file = "out";
+    }
+    outfs.open(output_file, std::ios::out | std::ios::trunc);
+    if (!outfs) {
+        ::fprintf(stderr, "Create file %s error\n\n", output_file.c_str());
+        exit(3);
+    }
+    output = &outfs;
+
+    if (arg["-s"] == true && arg["-c"] == true) {
         ::fprintf(stderr, "Cannot run lexer and parser at once\n");
         exit(2);
     }
-    if (arg["-l"] == true) {
-        lexer(*input, *output);
-    } else if (arg["-p"] == true) {
-        parser(*input, *output);
+    if (arg["-s"] == true) {
+        assembly(*input, *output);
+    } else if (arg["-c"] == true) {
+        binary(*input, *output);
     } else {
         ::fprintf(stderr, "Must choose running lexer or parser\n");
     }
