@@ -7,3 +7,6 @@
 [submodule "doc/c0-vm-standards"]
 	path = doc/c0-vm-standards
 	url = https://github.com/BUAA-SE-Compiling/c0-vm-standards
+[submodule "3rd_party/fmt"]
+	path = 3rd_party/fmt
+	url = https://github.com/fmtlib/fmt
