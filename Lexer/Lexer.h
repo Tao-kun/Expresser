@@ -6,10 +6,10 @@
 #include <vector>
 
 #include "Lexer/Token.h"
-#include "Util/Error.h"
+#include "Error/Error.h"
 
 namespace expresser {
-    class Lexer {
+    class Lexer final {
     private:
         std::istream &_input;
         bool _is_initialized;
@@ -23,14 +23,43 @@ namespace expresser {
     private:
         void readAll();
         std::pair<std::optional<Token>, std::optional<ExpresserError>> nextToken();
+        std::optional<ExpresserError> checkToken(const Token &t);
         position_t prevPos();
         position_t currPos();
         position_t nextPos();
-        char nextChar();
-        char peerNext();
+        std::optional<char> nextChar();
+        std::optional<char> peekNext();
         void rollback();
         bool isEOF();
+        template<typename T>
+        std::pair<std::optional<Token>, std::optional<ExpresserError>> makeToken(T value, position_t pos);
 
+
+        // TODO: edit it
+        enum DFAState {
+            INITIAL_STATE,
+            INTEGER_STATE,
+            HEX_STATE,
+            DOUBLE_STATE,
+            PLUS_SIGN_STATE,
+            MINUS_SIGN_STATE,
+            MULTIPLICATION_SIGN_STATE,
+            IDENTIFIER_STATE,
+            SEMICOLON_STATE,
+            COLON_STATE,
+            COMMA_STATE,
+            LEFTBRACKET_STATE,
+            RIGHTBRACKET_STATE,
+            LEFTBRACE_STATE,
+            RIGHTBRACE_STATE,
+            COMMENT_AND_DIVISION_SIGN_STATE,
+            LESS_STATE,
+            GREATER_STATE,
+            ASSIGN_EQUAL_STATE,
+            NOTEQUAL_STATE,
+            CHAR_STATE,
+            STRING_STATE
+        };
     };
 }
 

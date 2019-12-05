@@ -13,14 +13,17 @@ add_subdirectory(3rd_party/argparse)
 
 # Source Files
 set(LIB_FILES
+        Types.h
+        Error/Error.h
         Lexer/Token.h
         Lexer/Lexer.h
         Lexer/Lexer.cpp
-        Util/Error.h
+        Lexer/Utils.hpp
         Parser/Parser.h
         Parser/Parser.cpp)
 
 set(MAIN_FILES
+        fmp.hpp
         main.cpp)
 
 # Target File
