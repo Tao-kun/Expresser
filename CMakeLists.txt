@@ -7,9 +7,11 @@ set(PROJECT_LIB ${PROJECT_EXE}_lib)
 
 # Compiler
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_GLIBCXX_DEBUG")
 
 # Submodule
 add_subdirectory(3rd_party/argparse)
+add_subdirectory(3rd_party/fmt)
 
 # Source Files
 set(LIB_FILES
@@ -23,7 +25,7 @@ set(LIB_FILES
         Parser/Parser.cpp)
 
 set(MAIN_FILES
-        fmp.hpp
+        fmts.hpp
         main.cpp)
 
 # Target File
@@ -40,4 +42,7 @@ set_target_properties(${PROJECT_LIB} PROPERTIES
 target_include_directories(${PROJECT_EXE} PRIVATE .)
 target_include_directories(${PROJECT_LIB} PRIVATE .)
 
-target_link_libraries(${PROJECT_EXE} ${PROJECT_LIB} argparse)
+target_compile_options(${PROJECT_EXE} PRIVATE -Wall -g -O2)
+target_compile_options(${PROJECT_LIB} PRIVATE -Wall -g -O2)
+
+target_link_libraries(${PROJECT_EXE} ${PROJECT_LIB} argparse fmt::fmt)

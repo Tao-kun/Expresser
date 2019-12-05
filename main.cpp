@@ -1,17 +1,21 @@
 #include <fstream>
 #include <iostream>
+
 #include "argparse.hpp"
+#include "fmt/core.h"
+
+#include "fmts.hpp"
 #include "Lexer/Lexer.h"
 
 void lexer(std::istream &_input, std::ostream &_output) {
     expresser::Lexer lex(_input);
     auto res = lex.AllTokens();
     if (res.second.has_value()) {
-        std::cerr << "Lexer error: " << res.second->ErrorInfo() << std::endl;
+        fmt::print(stderr, "Lexer error: {}\n", res.second.value());
         exit(2);
     }
-    for (auto token:res.first) {
-        std::cout << token.GetInfo() << std::endl;
+    for (const auto& token:res.first) {
+        std::cout << fmt::format("{}\n", token);
     }
 }
 

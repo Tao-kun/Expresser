@@ -6,6 +6,7 @@
 #include <utility>
 #include <variant>
 #include <set>
+#include <string>
 
 #include "Types.h"
 #include "Error/Error.h"
@@ -17,7 +18,6 @@ namespace expresser {
         IDENTIFIER, /* [a-zA-Z_]\w* 或 (?!\d)\w+ */
         INTEGER, /* \d+ */
         CHARLITERAL, /* \'[\x00-\xFF]\' */
-        FLOAT,
         DOUBLE,
 
         RESERVED,
@@ -26,21 +26,6 @@ namespace expresser {
         MINUS,
         MULTIPLE,
         DIVIDE,
-        MOD,
-
-        NOT, /* BIT ARITHMETIC */
-        AND,
-        OR,
-        XOR,
-        SHR,
-        SHL,
-
-        LOGICALNOT,  /* LOGICAL ARITHMETIC */
-        LOGICALAND,
-        LOGICALOR,
-
-        INC, /* INC DEC */
-        DEC,
 
         LESS, /* RELATION */
         GREATER,
@@ -51,8 +36,6 @@ namespace expresser {
 
         LEFTBRACKET, /* BRACKETS */
         RIGHTBRACKET,
-        LEFTPRA,
-        RIGHTPRA,
         LEFTBRACE,
         RIGHTBRACE,
 

@@ -50,16 +50,20 @@ namespace expresser {
         position_t _pos;
     public:
         ExpresserError(position_t position, ErrorCode code) :
-                _pos(std::move(position)), _code(code) {}
+                _code(code), _pos(std::move(position)) {}
+
         ExpresserError(uint32_t line, uint32_t line_pos, ErrorCode code) :
-                _pos({line, line_pos}), _code(code) {}
+                _code(code), _pos({line, line_pos}) {}
+
         ExpresserError &operator=(ExpresserError ce) {
             std::swap(*this, ce);
             return *this;
         }
+
         bool operator==(const ExpresserError &rhs) const { return _pos == rhs._pos && _code == rhs._code; }
 
         position_t GetPos() const { return _pos; }
+
         ErrorCode GetCode() const { return _code; }
     };
 }

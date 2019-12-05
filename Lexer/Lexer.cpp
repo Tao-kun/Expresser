@@ -25,6 +25,7 @@ namespace expresser {
             return std::make_pair(p.first, err.value());
         return std::make_pair(p.first, std::optional<ExpresserError>());
     }
+
     std::pair<std::vector<Token>, std::optional<ExpresserError>> Lexer::AllTokens() {
         std::vector<Token> result;
         for (;;) {
@@ -38,6 +39,7 @@ namespace expresser {
             result.emplace_back(p.first.value());
         }
     }
+
     void Lexer::readAll() {
         if (_is_initialized)
             return;
@@ -72,10 +74,10 @@ namespace expresser {
                                       std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidIdentifier));;
             auto it = reserved_set.find(str);
             if (it != reserved_set.end())
-                return std::make_pair(std::make_optional<Token>(RESERVED, it, pos, currPos()),
+                return std::make_pair(std::make_optional<Token>(RESERVED, str, pos, currPos()),
                                       std::optional<ExpresserError>());
             else
-                return std::make_pair(std::make_optional<Token>(IDENTIFIER, it, pos, currPos()),
+                return std::make_pair(std::make_optional<Token>(IDENTIFIER, str, pos, currPos()),
                                       std::optional<ExpresserError>());
         };
         auto return_double = [&]() {
@@ -167,15 +169,15 @@ namespace expresser {
                             }
                         }
                     }
-                    if (current_state != DFAState::INITIAL_STATE)
+                    if (current_state != DFAState::INITIAL_STATE) {
                         pos = prevPos();
+                        ss << ch;
+                    }
                     if (invalid) {
                         rollback();
                         return std::make_pair(std::optional<Token>(),
                                               std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
                     }
-                    if (current_state != DFAState::INITIAL_STATE)
-                        ss << ch;
                     break;
                 }
                 case PLUS_SIGN_STATE:
@@ -197,8 +199,9 @@ namespace expresser {
                                               std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
                     auto it = simple_token_map.find(ch);
                     if (it != simple_token_map.end())
-                        return std::make_pair(std::make_optional<Token>(it->second, it->first, pos, currPos()),
-                                              std::optional<ExpresserError>());
+                        return std::make_pair(
+                                std::make_optional<Token>(it->second, std::get<char>(it->first), pos, currPos()),
+                                std::optional<ExpresserError>());
                     else
                         return std::make_pair(std::optional<Token>(),
                                               std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidCharacter));
@@ -217,8 +220,12 @@ namespace expresser {
                             ss >> str;
                             if (ss.fail())
                                 return std::make_pair(std::optional<Token>(),
-                                                      std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
+                                                      std::make_optional<ExpresserError>(pos,
+                                                                                         ErrorCode::ErrInvalidInput));
                             return makeToken<std::string>(str, pos);
+                        } else {
+                            // 回滚
+                            rollback();
                         }
                     }
                     // 下一个不是'='，或者下一个为EOF
@@ -232,8 +239,9 @@ namespace expresser {
                     // 预读，如果不是'='就报错
                     if (current_char.has_value()) {
                         if (current_char.value() == '=') {
-                            return std::make_pair(std::make_optional<Token>(TokenType::NOTEQUAL, std::string("!="), pos, currPos()),
-                                                  std::optional<ExpresserError>());
+                            return std::make_pair(
+                                    std::make_optional<Token>(TokenType::NOTEQUAL, std::string("!="), pos, currPos()),
+                                    std::optional<ExpresserError>());
                         }
                     }
                     return std::make_pair(std::optional<Token>(),
@@ -395,6 +403,7 @@ namespace expresser {
         return std::make_pair(std::optional<Token>(),
                               std::optional<ExpresserError>());
     }
+
     std::optional<ExpresserError> Lexer::checkToken(const Token &t) {
         const static std::regex ident_regex("[a-zA-Z][0-9a-zA-Z]*", std::regex::extended);
         switch (t.GetType()) {
@@ -409,6 +418,7 @@ namespace expresser {
         }
         return {};
     }
+
     position_t Lexer::prevPos() {
         if (_next_char_position.first == 0 && _next_char_position.second == 0)
             ExceptionPrint("current position is file begining, no previous");
@@ -438,8 +448,9 @@ namespace expresser {
     std::optional<char> Lexer::nextChar() {
         if (isEOF())
             return {};
+        auto res = _content_lines[_next_char_position.first][_next_char_position.second];
         _next_char_position = nextPos();
-        return _content_lines[_next_char_position.first][_next_char_position.second];
+        return res;
     }
 
     std::optional<char> Lexer::peekNext() {
@@ -456,10 +467,10 @@ namespace expresser {
     template<typename T>
     std::pair<std::optional<Token>, std::optional<ExpresserError>> Lexer::makeToken(T value, position_t pos) {
         auto it = simple_token_map.find(value);
-        if (it != simple_token_map.end()) {
-            return std::make_pair(std::make_optional<Token>(it->second, it->first, pos, currPos()),
+        if (it != simple_token_map.end())
+            return std::make_pair(std::make_optional<Token>(it->second, std::get<T>(it->first), pos, currPos()),
                                   std::optional<ExpresserError>());
-        } else
+        else
             return std::make_pair(std::optional<Token>(),
                                   std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
     }
