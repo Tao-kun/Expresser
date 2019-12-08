@@ -7,7 +7,6 @@
 
 #include "Types.h"
 
-
 namespace expresser {
     inline void ExceptionPrint(const std::string &cond) {
         std::cout << "Exception: " << cond << std::endl;

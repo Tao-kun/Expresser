@@ -17,6 +17,7 @@ add_subdirectory(3rd_party/fmt)
 set(LIB_FILES
         Types.h
         Error/Error.h
+        Instruction/Instruction.h
         Lexer/Token.h
         Lexer/Lexer.h
         Lexer/Lexer.cpp

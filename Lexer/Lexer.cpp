@@ -220,8 +220,7 @@ namespace expresser {
                             ss >> str;
                             if (ss.fail())
                                 return std::make_pair(std::optional<Token>(),
-                                                      std::make_optional<ExpresserError>(pos,
-                                                                                         ErrorCode::ErrInvalidInput));
+                                                      std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
                             return makeToken<std::string>(str, pos);
                         } else {
                             // 回滚
@@ -263,9 +262,10 @@ namespace expresser {
                         } else if (ch == 'x' || ch == 'X') {
                             ss << ch;
                             current_state = HEX_STATE;
-                        } else if (ch == '.') {
+                        } else if (ch == '.' || ch == 'e' || ch == 'E') {
                             ss << ch;
                             current_state = DOUBLE_STATE;
+                            break;
                         } else if (expresser::isalpha(ch)) {
                             ss << ch;
                             current_char = IDENTIFIER_STATE;
@@ -308,22 +308,39 @@ namespace expresser {
                     //    |<digit-seq><exponent>
                     // <exponent> ::=
                     //    ('e'|'E')[<sign>]<digit-seq>
+                    bool has_signal = false;
                     bool has_exponent = false;
+
+                    std::string current_ss = ss.str();
+                    char last_ch = current_ss[current_ss.size() - 1];
+                    if (last_ch == 'e' || last_ch == 'E')
+                        has_exponent = true;
 
                     for (;; current_char = nextChar()) {
                         if (!current_char.has_value()) {
                             return return_double();
                         }
                         char ch = current_char.value();
-                        if (isdigit(ch) && !has_exponent) {
+                        if (isdigit(ch)) {
                             ss << ch;
                         } else if (ch == '.' || (has_exponent && (ch == 'e' || ch == 'E'))) {
                             // 只能有一个exponent，只能有一个小数点
+                            // 有exponent后，符号只能接在e/E后
                             return std::make_pair(std::optional<Token>(),
                                                   std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidDouble));
                         } else if (ch == 'e' || ch == 'E') {
                             ss << ch;
                             has_exponent = true;
+                        } else if (has_exponent && (ch == '+' || ch == '-')) {
+                            // 符号不在e/E后就报错
+                            // 符号不止一个就报错
+                            current_ss = ss.str();
+                            last_ch = current_ss[current_ss.size() - 1];
+                            if (has_signal || (last_ch != 'e' && last_ch != 'E'))
+                                return std::make_pair(std::optional<Token>(),
+                                                      std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidDouble));
+                            ss << ch;
+                            has_signal = true;
                         } else {
                             rollback();
                             return return_double();

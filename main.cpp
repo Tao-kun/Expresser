@@ -1,26 +1,40 @@
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 #include "argparse.hpp"
 #include "fmt/core.h"
 
 #include "fmts.hpp"
 #include "Lexer/Lexer.h"
+#include "Parser/Parser.h"
 
-void lexer(std::istream &_input, std::ostream &_output) {
+std::vector<expresser::Token> _allToken(std::istream &_input) {
     expresser::Lexer lex(_input);
     auto res = lex.AllTokens();
     if (res.second.has_value()) {
         fmt::print(stderr, "Lexer error: {}\n", res.second.value());
         exit(2);
     }
-    for (const auto& token:res.first) {
-        std::cout << fmt::format("{}\n", token);
+    return res.first;
+}
+
+void lexer(std::istream &_input, std::ostream &_output) {
+    auto t = _allToken(_input);
+    for (const auto &token:t) {
+        _output << fmt::format("{}\n", token);
     }
 }
 
 void assembly(std::istream &_input, std::ostream &_output) {
-
+    auto tks = _allToken(_input);
+    expresser::Parser parser(tks);
+    auto err = parser.Parse();
+    if (err.has_value()) {
+        fmt::print(stderr, "Parser error: {}\n", err.value());
+        exit(2);
+    }
+    parser.WriteToFile(_output);
 }
 
 void binary(std::istream &_input, std::ostream &_output) {
@@ -82,7 +96,9 @@ int main(int argc, char **argv) {
         std::cerr << "Create file " << output_file << " error" << std::endl;
         exit(3);
     }
-    output = &outfs;
+    // TODO: remove it after finish all
+    // output = &outfs;
+    output = &std::cout;
 
     if (arg["-l"] == true && arg["-s"] == true) {
         std::cerr << "Cannot run lexer and parser at once" << std::endl;

@@ -34,8 +34,6 @@ namespace expresser {
         template<typename T>
         std::pair<std::optional<Token>, std::optional<ExpresserError>> makeToken(T value, position_t pos);
 
-
-        // TODO: edit it
         enum DFAState {
             INITIAL_STATE,
             INTEGER_STATE,
