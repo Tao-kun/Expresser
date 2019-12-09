@@ -1,5 +1,6 @@
 #include <optional>
 #include <regex>
+#include <sstream>
 #include <vector>
 
 #include "Lexer/Lexer.h"
@@ -58,7 +59,10 @@ namespace expresser {
         // 辅助函数
         auto return_int = [&]() {
             int32_t int_value;
-            ss >> int_value;
+            if (current_state == HEX_STATE)
+                ss >> std::hex >> int_value;
+            else
+                ss >> int_value;
             if (ss.fail())
                 return std::make_pair(std::optional<Token>(),
                                       std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInteger));
@@ -262,6 +266,7 @@ namespace expresser {
                         } else if (ch == 'x' || ch == 'X') {
                             ss << ch;
                             current_state = HEX_STATE;
+                            break;
                         } else if (ch == '.' || ch == 'e' || ch == 'E') {
                             ss << ch;
                             current_state = DOUBLE_STATE;
@@ -277,7 +282,6 @@ namespace expresser {
                     break;
                 }
                 case HEX_STATE: {
-                    // TODO: impl it
                     // 从INTEGER_STATE跳转而来
                     for (; current_state == HEX_STATE; current_char = nextChar()) {
                         if (!current_char.has_value()) {

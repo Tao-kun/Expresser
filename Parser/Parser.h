@@ -17,6 +17,7 @@ namespace expresser {
         char _type;
         std::variant<int32_t, double, std::string> _value;
 
+        Constant() = default;
         template<typename T>
         Constant(int index, char type, T value);
         std::string ToCode();
