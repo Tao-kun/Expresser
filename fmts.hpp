@@ -88,11 +88,17 @@ namespace fmt {
                 case expresser::ErrInvalidVariableDeclaration:
                     name = "InvalidVariableDeclaration";
                     break;
+                case expresser::ErrInvalidVariableType:
+                    name = "ErrInvalidVariableType";
+                    break;
                 case expresser::ErrIntegerOverflow:
                     name = "IntegerOverflow";
                     break;
                 case expresser::ErrNeedIdentifier:
                     name = "NeedIdentifier";
+                    break;
+                case expresser::ErrNeedVariableType:
+                    name = "ErrNeedVariableType";
                     break;
                 case expresser::ErrNoSemicolon:
                     name = "NoSemicolon";

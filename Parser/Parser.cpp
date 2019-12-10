@@ -211,12 +211,11 @@ namespace expresser {
     }
 
     // 语法制导翻译
-
     std::optional<ExpresserError> Parser::parseProgram() {
         auto err = parseGlobalDeclarations();
         if (err.has_value())
             return err;
-        err = parseFunctions();
+        err = parseFunctionDefinitions();
         if (err.has_value())
             return err;
         return {};
@@ -226,15 +225,209 @@ namespace expresser {
         // 0个或无数个
         for (;;) {
             // TODO: impl it
+            auto token = nextToken();
+            if (!token.has_value())
+                return {};
+            if (token.value().GetType() == RESERVED && token.value().GetStringValue() == std::string("const")) {
+                // TODO: const
+
+                // TYPE
+                token = nextToken();
+                if (!token.has_value())
+                    return std::make_optional<ExpresserError>(_current_pos, ErrorCode::ErrConstantNeedValue);
+                // 只会是int/double/char中一种
+                Token type = token.value();
+                for (;;) {
+                    // IDENTFIER
+                    token = nextToken();
+                    if (!token.has_value() || token.value().GetType() != IDENTIFIER)
+                        return std::make_optional<ExpresserError>(_current_pos, ErrorCode::ErrNeedIdentifier);
+                    Token identifier = token.value();
+
+                    // =
+                    token = nextToken();
+                    if (!token.has_value() || token.value().GetType() != ASSIGN)
+                        return std::make_optional<ExpresserError>(_current_pos, ErrorCode::ErrInvalidAssignment);
+
+                    // <expression>
+                    // TODO: 将结果存入常量表中
+                    auto err = parseExpression(stringTypeToTokenType(type.GetStringValue()).value());
+                    if (err.has_value())
+                        return err.value();
+
+                    // , or ;
+                    token = nextToken();
+                    if (token.has_value()) {
+                        if (token.value().GetType() == SEMICOLON)
+                            break;
+                        if (token.value().GetType() == COLON)
+                            continue;
+                    }
+                    // 不是分号逗号、或者没值
+                    return std::make_optional<ExpresserError>(_current_pos, ErrorCode::ErrInvalidAssignment);
+                }
+            } else if (token.value().GetType() == RESERVED && token.value().GetStringValue() == std::string("const")) {
+                // TODO: var or func
+            }
         }
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseFunctions() {
+    std::optional<ExpresserError> Parser::parseFunctionDefinitions() {
         // 1个或无数个
         for (;;) {
             // TODO: impl it
         }
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseFunctionDefinition() {
+        //<function-definition> ::
+        //    <type-specifier><identifier><parameter-clause><compound-statement>
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseParameterDeclarations() {
+        //<parameter-clause> ::=
+        //    '(' [<parameter-declaration-list>] ')'
+        //<parameter-declaration-list> ::=
+        //    <parameter-declaration>{','<parameter-declaration>}
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseCompoundStatement() {
+        //<compound-statement> ::=
+        //    '{' {<variable-declaration>} <statement-seq> '}'
+        //<statement-seq> ::=
+        //	{<statement>}
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseLocalVariableDeclarations() {
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseStatements() {
+        //<statement-seq> ::=
+        //	{<statement>}
+        //<statement> ::=
+        //     <compound-statement>   --   拓展C0,作用域
+        //    |<condition-statement>
+        //    |<loop-statement>
+        //    |<jump-statement>
+        //    |<print-statement>
+        //    |<scan-statement>
+        //    |<assignment-expression>';'
+        //    |<function-call>';'
+        //    |';'
+        // 0或多个
+        for (;;) {
+
+        }
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseConditionStatement() {
+        //<condition> ::=
+        //     <expression>[<relational-operator><expression>]
+        //<condition-statement> ::=
+        //     'if' '(' <condition> ')' <statement> ['else' <statement>]
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseLoopStatement() {
+        //<loop-statement> ::=
+        //    'while' '(' <condition> ')' <statement>
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseJumpStatement() {
+        //<jump-statement> ::=
+        //    <return-statement>
+        //<return-statement> ::=
+        //    'return' [<expression>] ';'
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parsePrintStatement() {
+        //<print-statement> ::=
+        //    'print' '(' [<printable-list>] ')' ';'
+        //<printable-list>  ::=
+        //    <printable> {',' <printable>}
+        //<printable> ::=
+        //    <expression>
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseScanStatement() {
+        //<scan-statement> ::=
+        //    'scan' '(' <identifier> ')' ';'
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseAssignmentExpression() {
+        //<assignment-expression> ::=
+        //    <identifier><assignment-operator><expression>
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseExpression(TokenType type) {
+        // TODO: impl it
+        //<expression> ::=
+        //    <additive-expression>
+        //<additive-expression> ::=
+        //     <multiplicative-expression>{<additive-operator><multiplicative-expression>}
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseMultiplicativeExpression(TokenType type) {
+        // TODO: impl it
+        //<multiplicative-expression> ::=
+        //     <cast-expression>{<multiplicative-operator><cast-expression>}
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseUnaryExpression(TokenType type) {
+        // TODO: impl it
+        //<unary-expression> ::=
+        //    [<unary-operator>]<primary-expression>
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parsePrimaryExpression(TokenType type) {
+        // TODO: impl it
+        //<primary-expression> ::=
+        //     '('<expression>')'
+        //    |<identifier>
+        //    |<integer-literal>
+        //    |<function-call>
+        //    |<char-literal>   --   拓展C0，char
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseFunctionCall() {
+        //<function-call> ::=
+        //    <identifier> '(' [<expression-list>] ')'
+        //<expression-list> ::=
+        //    <expression>{','<expression>}
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parseCastExpression() {
+        //<cast-expression> ::=
+        //    {'('<type-specifier>')'}<unary-expression>
+        return {};
+    }
+
+    bool Parser::isVariableType(const Token &token) {
+        auto it = _variable_type_map.find(token.GetStringValue());
+        return it != _variable_type_map.end();
+    }
+
+    std::optional<TokenType> Parser::stringTypeToTokenType(const std::string &type_name) {
+        auto it = _variable_type_map.find(type_name);
+        if (it == _variable_type_map.end())
+            return it->second;
         return {};
     }
 }

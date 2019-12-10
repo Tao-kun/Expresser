@@ -11,10 +11,17 @@
 #include "Instruction/Instruction.h"
 
 namespace expresser {
+    // 静态常量
+    const static std::set<TokenType> _variable_type_set = {INTEGER, DOUBLE, CHARLITERAL};
+    const static std::map<std::string, TokenType> _variable_type_map =
+            {{"int",    TokenType::INTEGER},
+             {"char",   TokenType::CHARLITERAL},
+             {"double", TokenType::DOUBLE}};
+
     struct Constant {
         // 常量有字符串S、双浮点D、整型I三种类型
-        int _index;
-        char _type;
+        int _index{};
+        char _type{};
         std::variant<int32_t, double, std::string> _value;
 
         Constant() = default;
@@ -91,9 +98,32 @@ namespace expresser {
         bool isConstant(const std::string &function_name, const std::string &variable_name);
 
         // 语法制导翻译
+        // 基础C0
         std::optional<ExpresserError> parseProgram();
         std::optional<ExpresserError> parseGlobalDeclarations();
-        std::optional<ExpresserError> parseFunctions();
-    };
+        std::optional<ExpresserError> parseFunctionDefinitions();
+        std::optional<ExpresserError> parseExpression(TokenType type);
+        std::optional<ExpresserError> parseMultiplicativeExpression(TokenType type);
+        std::optional<ExpresserError> parseUnaryExpression(TokenType type);
+        std::optional<ExpresserError> parsePrimaryExpression(TokenType type);
+        std::optional<ExpresserError> parseFunctionCall();
+        std::optional<ExpresserError> parseParameterDeclarations();
+        std::optional<ExpresserError> parseFunctionDefinition();
+        std::optional<ExpresserError> parseCompoundStatement();
+        std::optional<ExpresserError> parseLocalVariableDeclarations();
+        std::optional<ExpresserError> parseStatements();
+        std::optional<ExpresserError> parseConditionStatement();
+        std::optional<ExpresserError> parseLoopStatement();
+        std::optional<ExpresserError> parseJumpStatement();
+        std::optional<ExpresserError> parsePrintStatement();
+        std::optional<ExpresserError> parseScanStatement();
+        std::optional<ExpresserError> parseAssignmentExpression();
+        // 拓展C0
+        std::optional<ExpresserError> parseCastExpression();
+
+        // 静态函数
+        static bool isVariableType(const Token &token);
+        static std::optional<TokenType> stringTypeToTokenType(const std::string &type_name);
+    }
 }
 #endif //EXPRESSER_PARSER_H
