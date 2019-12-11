@@ -64,8 +64,7 @@ namespace expresser {
             else
                 ss >> int_value;
             if (ss.fail())
-                return std::make_pair(std::optional<Token>(),
-                                      std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInteger));
+                return errorFactory(ErrorCode::ErrInvalidInteger);
             else
                 return std::make_pair(std::make_optional<Token>(TokenType::INTEGER, int_value, pos, currPos()),
                                       std::optional<ExpresserError>());
@@ -74,8 +73,7 @@ namespace expresser {
             std::string str;
             ss >> str;
             if (ss.fail())
-                return std::make_pair(std::optional<Token>(),
-                                      std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidIdentifier));;
+                return errorFactory(ErrorCode::ErrInvalidIdentifier);
             auto it = reserved_set.find(str);
             if (it != reserved_set.end())
                 return std::make_pair(std::make_optional<Token>(RESERVED, str, pos, currPos()),
@@ -88,8 +86,7 @@ namespace expresser {
             double double_literal;
             ss >> double_literal;
             if (ss.fail())
-                return std::make_pair(std::optional<Token>(),
-                                      std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidDouble));
+                return errorFactory(ErrorCode::ErrInvalidDouble);
             else
                 return std::make_pair(std::make_optional<Token>(TokenType::DOUBLE, double_literal, pos, currPos()),
                                       std::optional<ExpresserError>());
@@ -100,8 +97,7 @@ namespace expresser {
             switch (current_state) {
                 case INITIAL_STATE: {
                     if (!current_char.has_value())
-                        return std::make_pair(std::optional<Token>(),
-                                              std::make_optional<ExpresserError>(currPos(), ErrorCode::ErrEOF));
+                        return errorFactory(ErrorCode::ErrEOF);
                     auto ch = current_char.value();
                     auto invalid = false;
 
@@ -179,8 +175,7 @@ namespace expresser {
                     }
                     if (invalid) {
                         rollback();
-                        return std::make_pair(std::optional<Token>(),
-                                              std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
+                        return errorFactory(ErrorCode::ErrInvalidInput);
                     }
                     break;
                 }
@@ -199,16 +194,14 @@ namespace expresser {
                     char ch;
                     ss >> ch;
                     if (ss.fail())
-                        return std::make_pair(std::optional<Token>(),
-                                              std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
+                        return errorFactory(ErrorCode::ErrInvalidInput);
                     auto it = simple_token_map.find(ch);
                     if (it != simple_token_map.end())
                         return std::make_pair(
                                 std::make_optional<Token>(it->second, std::get<char>(it->first), pos, currPos()),
                                 std::optional<ExpresserError>());
                     else
-                        return std::make_pair(std::optional<Token>(),
-                                              std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidCharacter));
+                        return errorFactory(ErrorCode::ErrInvalidCharacter);
                 }
                 case LESS_STATE:
                 case GREATER_STATE:
@@ -223,8 +216,7 @@ namespace expresser {
                             std::string str;
                             ss >> str;
                             if (ss.fail())
-                                return std::make_pair(std::optional<Token>(),
-                                                      std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
+                                return errorFactory(ErrorCode::ErrInvalidInput);
                             return makeToken<std::string>(str, pos);
                         } else {
                             // 回滚
@@ -234,8 +226,7 @@ namespace expresser {
                     // 下一个不是'='，或者下一个为EOF
                     ss >> ch;
                     if (ss.fail())
-                        return std::make_pair(std::optional<Token>(),
-                                              std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
+                        return errorFactory(ErrorCode::ErrInvalidInput);
                     return makeToken<char>(ch, pos);
                 }
                 case NOTEQUAL_STATE: {
@@ -247,8 +238,7 @@ namespace expresser {
                                     std::optional<ExpresserError>());
                         }
                     }
-                    return std::make_pair(std::optional<Token>(),
-                                          std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidNotEqual));
+                    return errorFactory(ErrorCode::ErrInvalidNotEqual);
                 }
                 case INTEGER_STATE: {
                     // TODO: impl it
@@ -330,8 +320,7 @@ namespace expresser {
                         } else if (ch == '.' || (has_exponent && (ch == 'e' || ch == 'E'))) {
                             // 只能有一个exponent，只能有一个小数点
                             // 有exponent后，符号只能接在e/E后
-                            return std::make_pair(std::optional<Token>(),
-                                                  std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidDouble));
+                            return errorFactory(ErrorCode::ErrInvalidDouble);
                         } else if (ch == 'e' || ch == 'E') {
                             ss << ch;
                             has_exponent = true;
@@ -341,8 +330,7 @@ namespace expresser {
                             current_ss = ss.str();
                             last_ch = current_ss[current_ss.size() - 1];
                             if (has_signal || (last_ch != 'e' && last_ch != 'E'))
-                                return std::make_pair(std::optional<Token>(),
-                                                      std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidDouble));
+                                return errorFactory(ErrorCode::ErrInvalidDouble);
                             ss << ch;
                             has_signal = true;
                         } else {
@@ -366,7 +354,7 @@ namespace expresser {
                     }
                 }
                 case COMMENT_AND_DIVISION_SIGN_STATE: {
-                    if (!current_char.has_value() || current_char.value() != '*' || current_char.value() != '/') {
+                    if (!current_char.has_value() || (current_char.value() != '*' && current_char.value() != '/')) {
                         rollback();
                         return std::make_pair(std::make_optional<Token>(TokenType::DIVIDE, '/', pos, currPos()),
                                               std::optional<ExpresserError>());
@@ -375,11 +363,11 @@ namespace expresser {
                     if (ch == '*') {
                         // <multi-line-comment> ::=
                         //    '/*'{<any-char>}'*/'
+                        ss.str(std::string(""));
                         for (; current_state == COMMENT_AND_DIVISION_SIGN_STATE; current_char = nextChar()) {
-                            if (!current_char.has_value()) {
-                                current_state = INITIAL_STATE;
-                                break;
-                            } else if (current_char.value() == '*') {
+                            if (!current_char.has_value())
+                                return errorFactory(ErrorCode::ErrEOF);
+                            else if (current_char.value() == '*') {
                                 // 预读
                                 current_char = nextChar();
                                 if (current_char.has_value() && current_char.value() == '/') {
@@ -422,30 +410,25 @@ namespace expresser {
                         current_state = INITIAL_STATE;
                         break;
                     }
-                    char ch = current_char.value();
+                    // 清空ss，本部分不使用ss
+                    ss.str(std::string(""));
+                    // for EASCII
+                    auto ch = static_cast<unsigned char>(current_char.value());
                     if (expresser::isaccch(ch) && ch != '\'' && ch != '\\' && ch != '\n' && ch != '\r') {
                         // <c-char>
                         current_char = nextChar();
                         if (!current_char.has_value() || current_char.value() != '\'')
-                            return std::make_pair(std::optional<Token>(),
-                                                  std::make_optional<ExpresserError>(currPos(), ErrorCode::ErrInvalidCharacterAssignment));
-                        return std::make_pair(
-                                std::make_optional<Token>(TokenType::CHARLITERAL, static_cast<int32_t>(ch), pos, currPos()),
-                                std::optional<ExpresserError>());
+                            return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
                     } else if (ch == '\\') {
                         //<escape-seq> ::=
                         //      '\\' | "\'" | '\"' | '\n' | '\r' | '\t'
                         //    | '\x'<hexadecimal-digit><hexadecimal-digit>
-                        ss.clear();
-                        ss << ch;
                         current_char = nextChar();
                         if (!current_char.has_value())
-                            return std::make_pair(std::optional<Token>(),
-                                                  std::make_optional<ExpresserError>(currPos(), ErrorCode::ErrInvalidCharacterAssignment));
+                            return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
                         ch = current_char.value();
                         if (ch == 'r' || ch == 'n' || ch == 't' || ch == '\\' || ch == '\'' || ch == '"') {
-                            // '\{n,r,t,\}
-                            ss.clear();
+                            // \{n,r,t,\}
                             switch (ch) {
                                 case 'r':
                                     ch = '\r';
@@ -461,45 +444,39 @@ namespace expresser {
                             }
                             current_char = nextChar();
                             if (!current_char.has_value() || current_char.value() != '\'')
-                                return std::make_pair(std::optional<Token>(),
-                                                      std::make_optional<ExpresserError>(currPos(),
-                                                                                         ErrorCode::ErrInvalidCharacterAssignment));
-                            return std::make_pair(
-                                    std::make_optional<Token>(TokenType::CHARLITERAL, static_cast<int32_t>(ch), pos, currPos()),
-                                    std::optional<ExpresserError>());
+                                return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
                         } else if (ch == 'x') {
-                            // '\x
+                            char arr[2] = {0, 0};
+                            // \x
                             // 连着两个xdigit，再连着一个单引号
-                            ss << ch;
-                            for (int i = 0; i < 2; i++) {
+                            for (char &elem : arr) {
                                 current_char = nextChar();
-                                if (current_char.has_value() && expresser::isxdigit(current_char.value())) {
-                                    ss << current_char.value();
-                                } else {
-                                    // 失败
-                                    return std::make_pair(std::optional<Token>(),
-                                                          std::make_optional<ExpresserError>(currPos(),
-                                                                                             ErrorCode::ErrInvalidCharacterAssignment));
-                                }
+                                if (current_char.has_value()) {
+                                    ch = current_char.value();
+                                    if (expresser::isdigit(ch))
+                                        ch -= '0';
+                                    else if (expresser::isxdigit(ch))
+                                        ch -= 'a' + 10;
+                                    else
+                                        return errorFactory(ErrorCode::ErrInvalidCharacter);
+                                    elem = ch;
+                                } else
+                                    return errorFactory(ErrorCode::ErrInvalidCharacter);
                             }
                             current_char = nextChar();
                             if (!current_char.has_value() || current_char.value() != '\'')
-                                return std::make_pair(std::optional<Token>(),
-                                                      std::make_optional<ExpresserError>(currPos(),
-                                                                                         ErrorCode::ErrInvalidCharacterAssignment));
-                            ss >> ch;
-                            return std::make_pair(
-                                    std::make_optional<Token>(TokenType::CHARLITERAL, static_cast<int32_t>(ch), pos, currPos()),
-                                    std::optional<ExpresserError>());
+                                return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
+                            ch = (arr[0] << 4) + arr[1];
                         } else {
-                            // 错误
-                            return std::make_pair(std::optional<Token>(),
-                                                  std::make_optional<ExpresserError>(currPos(), ErrorCode::ErrInvalidCharacterAssignment));
+                            //error
+                            return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
                         }
                     } else {
-                        return std::make_pair(std::optional<Token>(),
-                                              std::make_optional<ExpresserError>(currPos(), ErrorCode::ErrInvalidCharacter));
+                        return errorFactory(ErrorCode::ErrInvalidCharacter);
                     }
+                    return std::make_pair(
+                            std::make_optional<Token>(TokenType::CHARLITERAL, static_cast<int32_t>(ch), pos, currPos()),
+                            std::optional<ExpresserError>());
                     break;
                 }
                 case STRING_STATE: {
@@ -507,10 +484,66 @@ namespace expresser {
                         current_state = INITIAL_STATE;
                         break;
                     }
-                    char ch = current_char.value();
-                    if (expresser::isaccch(ch) && ch != '\"' && ch != '\\' && ch != '\n' && ch != '\r') {
-
+                    std::stringstream stringliteralstream;
+                    for (; current_state == STRING_STATE; current_char = nextChar()) {
+                        char ch = current_char.value();
+                        if (!current_char.has_value())
+                            return errorFactory(ErrorCode::ErrEOF);
+                        if (expresser::isaccch(ch) && ch != '"' && ch != '\\' && ch != '\n' && ch != '\r') {
+                            //<s-char>
+                            stringliteralstream << ch;
+                        } else if (ch == '\\') {
+                            //<escape-seq> ::=
+                            //      '\\' | "\'" | '\"' | '\n' | '\r' | '\t'
+                            //    | '\x'<hexadecimal-digit><hexadecimal-digit>
+                            current_char = nextChar();
+                            if (!current_char.has_value())
+                                return errorFactory(ErrorCode::ErrEOF);
+                            if (ch == 'r' || ch == 'n' || ch == 't' || ch == '\\' || ch == '\'' || ch == '"') {
+                                // \{n,r,t,\}
+                                switch (ch) {
+                                    case 'r':
+                                        ch = '\r';
+                                        break;
+                                    case 'n':
+                                        ch = '\n';
+                                        break;
+                                    case 't':
+                                        ch = '\t';
+                                        break;
+                                    default:
+                                        break;
+                                }
+                                stringliteralstream << ch;
+                            } else if (ch == 'x') {
+                                // \x
+                                ss.clear();
+                                ss << '\\';
+                                ss << ch;
+                                for (int i = 0; i < 2; i++) {
+                                    current_char = nextChar();
+                                    if (current_char.has_value() && expresser::isxdigit(current_char.value()))
+                                        ss << current_char.value();
+                                    else
+                                        return errorFactory(ErrorCode::ErrEOF);
+                                }
+                                ss >> ch;
+                                stringliteralstream << ch;
+                            } else
+                                return errorFactory(ErrorCode::ErrInvalidCharacter);
+                        } else if (ch == '"')
+                            break;
+                        else
+                            return errorFactory(ErrorCode::ErrInvalidCharacter);
                     }
+                    std::string val;
+                    stringliteralstream >> val;
+                    if (stringliteralstream.fail())
+                        //error
+                        return errorFactory(ErrorCode::ErrInvalidStringLiteral);
+                    else
+                        return std::make_pair(std::make_optional<Token>(TokenType::STRINGLITERAL, val, pos, currPos()),
+                                              std::optional<ExpresserError>());
                     break;
                 }
                 default: {
@@ -519,8 +552,7 @@ namespace expresser {
                 }
             }
         }
-        return std::make_pair(std::optional<Token>(),
-                              std::optional<ExpresserError>());
+        return std::make_pair(std::optional<Token>(), std::optional<ExpresserError>());
     }
 
     std::optional<ExpresserError> Lexer::checkToken(const Token &t) {
@@ -592,5 +624,10 @@ namespace expresser {
         else
             return std::make_pair(std::optional<Token>(),
                                   std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
+    }
+
+    std::pair<std::optional<Token>, std::optional<ExpresserError>> Lexer::errorFactory(ErrorCode code) {
+        return std::make_pair(std::optional<Token>(),
+                              std::make_optional<ExpresserError>(this->currPos(), code));
     }
 }

@@ -33,6 +33,7 @@ namespace expresser {
         bool isEOF();
         template<typename T>
         std::pair<std::optional<Token>, std::optional<ExpresserError>> makeToken(T value, position_t pos);
+        std::pair<std::optional<Token>, std::optional<ExpresserError>> errorFactory(ErrorCode code);
 
         enum DFAState {
             INITIAL_STATE,

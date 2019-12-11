@@ -28,7 +28,9 @@ namespace expresser {
     IS_FUNC(isxdigit);
 
     bool isaccch(char ch) {
-        return expresser::isdigit(ch) || expresser::isprint(ch);
+        return expresser::isdigit(ch) ||
+               expresser::isprint(ch) ||
+               expresser::isspace(ch);
     }
 }
 

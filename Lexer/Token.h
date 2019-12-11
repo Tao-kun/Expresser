@@ -75,7 +75,6 @@ namespace expresser {
             {"==", EQUAL}
     };
 
-
     class Token final {
     private:
         TokenType _type;
