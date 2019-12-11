@@ -12,13 +12,24 @@ namespace expresser {
     using __let_this_macro_end_with_a_simicolon_##f = int
 
     IS_FUNC(isprint);
+
     IS_FUNC(isspace);
+
     IS_FUNC(isblank);
+
     IS_FUNC(isalpha);
+
     IS_FUNC(isupper);
+
     IS_FUNC(islower);
+
     IS_FUNC(isdigit);
+
     IS_FUNC(isxdigit);
+
+    bool isaccch(char ch) {
+        return expresser::isdigit(ch) || expresser::isprint(ch);
+    }
 }
 
 #endif //EXPRESSER_UTILS_HPP

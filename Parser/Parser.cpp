@@ -296,6 +296,7 @@ namespace expresser {
     }
 
     std::optional<ExpresserError> Parser::parseCompoundStatement() {
+        // 拓展C0,作用域
         //<compound-statement> ::=
         //    '{' {<variable-declaration>} <statement-seq> '}'
         //<statement-seq> ::=
@@ -355,7 +356,7 @@ namespace expresser {
         //<printable-list>  ::=
         //    <printable> {',' <printable>}
         //<printable> ::=
-        //    <expression>
+        //    <expression> | <string-literal> | <char-literal>   --   拓展C0，字面量打印
         return {};
     }
 
@@ -382,6 +383,7 @@ namespace expresser {
 
     std::optional<ExpresserError> Parser::parseMultiplicativeExpression(TokenType type) {
         // TODO: impl it
+        // 拓展C0，类型转换
         //<multiplicative-expression> ::=
         //     <cast-expression>{<multiplicative-operator><cast-expression>}
         return {};
@@ -414,6 +416,7 @@ namespace expresser {
     }
 
     std::optional<ExpresserError> Parser::parseCastExpression() {
+        // 拓展C0，类型转换
         //<cast-expression> ::=
         //    {'('<type-specifier>')'}<unary-expression>
         return {};

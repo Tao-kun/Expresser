@@ -58,6 +58,9 @@ namespace fmt {
                 case expresser::ErrInvalidCharacter:
                     name = "InvalidCharacter";
                     break;
+                case expresser::ErrInvalidCharacterAssignment:
+                    name = "ErrInvalidCharacterAssignment";
+                    break;
                 case expresser::ErrInvalidDouble:
                     name = "InvalidDouble";
                     break;

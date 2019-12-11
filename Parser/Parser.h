@@ -56,7 +56,8 @@ namespace expresser {
         uint32_t _offset;
         position_t _current_pos;
         std::vector<expresser::Token> _tokens;
-        std::vector<expresser::Instruction> _instruments;
+        // .start段的代码
+        std::vector<expresser::Instruction> _start_instruments;
         // 全局常量表
         std::map<std::string, Constant> _global_constants;
         // 全局变量在栈中地址
@@ -124,6 +125,6 @@ namespace expresser {
         // 静态函数
         static bool isVariableType(const Token &token);
         static std::optional<TokenType> stringTypeToTokenType(const std::string &type_name);
-    }
+    };
 }
 #endif //EXPRESSER_PARSER_H
