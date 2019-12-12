@@ -71,7 +71,8 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::addGlobalVariable(const std::string &variable_name, std::optional<std::any> value) {
+    std::optional<ExpresserError>
+    Parser::addGlobalVariable(const std::string &variable_name, TokenType type, std::optional<std::any> value) {
         if (isGlobalVariable(variable_name))
             return errorFactory(ErrorCode::ErrDuplicateDeclaration);
         // 全局堆栈上分配全局变量
@@ -80,24 +81,32 @@ namespace expresser {
             auto val = std::any_cast<int32_t>(value.value());
             auto index = _start_instruments.size();
             _start_instruments.emplace_back(Instruction(index, Operation::IPUSH, 4, val));
-            _global_variables.insert({variable_name, _global_sp++});
+            _global_variables.insert({variable_name, {_global_sp++, type}});
         } else {
             // 无初始值，用snew
             auto index = _start_instruments.size();
             _start_instruments.emplace_back(Instruction(index, Operation::SNEW, 4, 1));
-            _global_uninitialized.insert({variable_name, _global_sp++});
+            _global_uninitialized.insert({variable_name, {_global_sp++, type}});
         }
         return {};
     }
 
-    std::pair<std::optional<Function>, std::optional<ExpresserError>>
+    std::optional<ExpresserError>
     Parser::addFunction(const std::string &function_name, const TokenType &return_type, const std::vector<FunctionParam> &params) {
         auto err = addGlobalConstant(function_name, 'S', function_name);
         if (err.has_value())
-            return std::make_pair(std::optional<Function>(), err.value());
+            return err.value();
         Function func(_functions.size(), _global_constants.find(function_name)->second._index, params.size(), return_type, params);
         _functions[function_name] = func;
-        return std::make_pair(func, std::optional<ExpresserError>());
+        // 把参数信息放入函数变量、常量表中
+        for (int32_t i = 0; i < params.size(); i++) {
+            auto p = params[i];
+            if (p._is_const)
+                func._local_constants.insert({p._value, {i, p._type}});
+            else
+                func._local_vars.insert({p._value, {i, p._type}});
+        }
+        return {};
     }
 
     std::optional<ExpresserError> Parser::addFunctionInstrument(const std::string &function_name, Instruction instruction) {
@@ -112,7 +121,7 @@ namespace expresser {
     }
 
     std::optional<ExpresserError>
-    Parser::addLocalConstant(const std::string &function_name, const std::string &constant_name, std::any value) {
+    Parser::addLocalConstant(const std::string &function_name, TokenType type, const std::string &constant_name, std::any value) {
         auto err = getFunction(function_name);
         if (err.second.has_value())
             return err.second.value();
@@ -123,12 +132,13 @@ namespace expresser {
         auto val = std::any_cast<int32_t>(value);
         auto index = func._instructions.size();
         func._instructions.emplace_back(Instruction(index, Operation::IPUSH, 4, val));
-        func._local_constants.insert({constant_name, _global_sp++});
+        func._local_constants.insert({constant_name, {_global_sp++, type}});
         return {};
     }
 
     std::optional<ExpresserError>
-    Parser::addLocalVariable(const std::string &function_name, const std::string &variable_name, std::optional<std::any> value) {
+    Parser::addLocalVariable(const std::string &function_name, const std::string &variable_name,
+                             TokenType type, std::optional<std::any> value) {
         auto err = getFunction(function_name);
         if (err.second.has_value())
             return err.second.value();
@@ -141,12 +151,12 @@ namespace expresser {
             auto val = std::any_cast<int32_t>(value.value());
             auto index = func._instructions.size();
             func._instructions.emplace_back(Instruction(index, Operation::IPUSH, 4, val));
-            func._local_vars.insert({variable_name, _global_sp++});
+            func._local_vars.insert({variable_name, {_global_sp++, type}});
         } else {
             // 无初始值，用snew
             auto index = func._instructions.size();
             func._instructions.emplace_back(Instruction(index, Operation::SNEW, 4, 1));
-            func._local_uninitialized.insert({variable_name, _global_sp++});
+            func._local_uninitialized.insert({variable_name, {_global_sp++, type}});
         }
         return {};
     }
@@ -163,18 +173,18 @@ namespace expresser {
                                       err.second.value());
             auto func = err.first.value();
             if (func._local_constants.find(variable_name) != func._local_constants.end())
-                res = func._local_constants[variable_name];
+                res = func._local_constants[variable_name]._index;
             else if (func._local_uninitialized.find(variable_name) != func._local_uninitialized.end())
-                res = func._local_uninitialized[variable_name];
+                res = func._local_uninitialized[variable_name]._index;
             else
-                res = func._local_vars[variable_name];
+                res = func._local_vars[variable_name]._index;
         } else if (isGlobalVariable(variable_name)) {
             if (_global_constants.find(variable_name) != _global_constants.end())
                 res = _global_constants[variable_name]._index;
             else if (_global_uninitialized.find(variable_name) != _global_uninitialized.end())
-                res = _global_uninitialized[variable_name];
+                res = _global_uninitialized[variable_name]._index;
             else
-                res = _global_variables[variable_name];
+                res = _global_variables[variable_name]._index;
         }
         if (res != -1)
             return std::make_pair(std::make_optional<int32_t>(res),
@@ -335,7 +345,7 @@ namespace expresser {
                         return errorFactory(ErrorCode::ErrNeedIdentifier);
                     auto identifier = token.value().GetStringValue();
                     // snew分配空间，因为不支持double所以slot为4
-                    addGlobalVariable(identifier, {});
+                    addGlobalVariable(identifier, var_type, {});
 
                     // =
                     token = nextToken();
@@ -349,7 +359,7 @@ namespace expresser {
                         // 加载预分配空间在栈中地址
                         auto index = _start_instruments.size();
                         auto it = _global_uninitialized.find(identifier);
-                        _start_instruments.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, it->second));
+                        _start_instruments.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, it->second._index));
                         // 解析<expression>
                         auto err = parseExpression(var_type);
                         if (err.has_value())
@@ -419,18 +429,9 @@ namespace expresser {
         auto err = parseParameterDeclarations(params);
         if (err.has_value())
             return err.value();
-        auto func_err = addFunction(function_name, return_type, params);
-        if (func_err.second.has_value())
-            return func_err.second.value();
-        // 把参数信息放入函数变量、常量表中
-        auto function = func_err.first.value();
-        for (int32_t i = 0; i < params.size(); i++) {
-            auto p = params[i];
-            if (p._is_const)
-                function._local_constants.insert({p._value, i});
-            else
-                function._local_vars.insert({p._value, i});
-        }
+        err = addFunction(function_name, return_type, params);
+        if (err.has_value())
+            return err.value();
 
         // <compound-statement>
         err = parseCompoundStatement();
@@ -469,7 +470,7 @@ namespace expresser {
                     is_const = true;
                 }
                 // <类型><标识符>
-                auto param_type = token->GetStringValue();
+                auto param_type = stringTypeToTokenType(token->GetStringValue()).value();
                 token = nextToken();
                 if (!token.has_value() || token->GetType() != IDENTIFIER)
                     return errorFactory(ErrorCode::ErrNeedIdentifier);

@@ -75,11 +75,13 @@ namespace expresser {
 
     class Instruction {
     private:
-        uint32_t _index;
+        uint32_t _index{};
         Operation _opcode;
         struct InstructionParam _params[2]{};
 
     public:
+        Instruction() = default;
+
         Instruction(uint32_t index, Operation _op) {
             _index = index;
             _opcode = _op;
