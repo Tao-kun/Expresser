@@ -77,7 +77,7 @@ namespace expresser {
     private:
         uint32_t _index;
         Operation _opcode;
-        struct Param _params[2];
+        struct Param _params[2]{};
 
     public:
         Instruction(uint32_t index, Operation _op) {
@@ -102,6 +102,10 @@ namespace expresser {
             ::memcpy(_params[0]._value, &param1, _size1);
             _params[1]._size = _size2;
             ::memcpy(_params[1]._value, &param2, _size2);
+        }
+
+        void SetIndex(uint32_t index) {
+            _index = index;
         }
 
         uint32_t GetIndex() {

@@ -42,6 +42,8 @@ namespace expresser {
         int32_t _level;
         std::vector<FunctionParam> _params;
 
+        // 局部栈顶值
+        int32_t _local_sp;
         // 局部常量表
         std::map<std::string, int32_t> _local_constants;
         // 局部变量表（已初始化）
@@ -49,6 +51,10 @@ namespace expresser {
         // 局部变量表（未初始化）
         std::map<std::string, int32_t> _local_uninitialized;
         std::vector<Instruction> _instructions;
+
+        // 构造函数
+        Function(int32_t index, int32_t name_index, int32_t param_size, std::vector<FunctionParam> params) :
+                _index(index), _name_index(name_index), _params_size(param_size), _level(1), _params(std::move(params)), _local_sp(0) {}
     };
 
     class Parser final {
@@ -60,6 +66,8 @@ namespace expresser {
         std::vector<expresser::Instruction> _start_instruments;
         // 全局常量表
         std::map<std::string, Constant> _global_constants;
+        // 全局栈顶值
+        int32_t _global_sp;
         // 全局变量在栈中地址
         std::map<std::string, int32_t> _global_variables;
         // 全局未初始化变量在栈中地址
@@ -68,7 +76,7 @@ namespace expresser {
         std::map<std::string, Function> _functions;
     public:
         explicit Parser(std::vector<expresser::Token> _token_vector) :
-                _offset(0), _current_pos({0, 0}), _tokens(std::move(_token_vector)) {}
+                _offset(0), _current_pos({0, 0}), _tokens(std::move(_token_vector)), _global_sp(0) {}
 
         std::optional<ExpresserError> Parse();
         void WriteToFile(std::ostream &_output);
@@ -78,8 +86,8 @@ namespace expresser {
         template<typename T>
         std::optional<ExpresserError> addGlobalConstant(const std::string &constant_name, char type, T value);
         std::optional<ExpresserError> addGlobalVariable(const std::string &variable_name, std::optional<std::any> value);
-        std::optional<ExpresserError> addFunction(const std::string &function_name, std::vector<FunctionParam> params);
-        std::optional<ExpresserError> addInstrument(std::string function_name, Instruction instruction);
+        std::optional<ExpresserError> addFunction(const std::string &function_name, const std::vector<FunctionParam>& params);
+        std::optional<ExpresserError> addFunctionInstrument(const std::string& function_name, Instruction instruction);
         std::optional<ExpresserError> addLocalConstant(const std::string &function_name, const std::string &constant_name, std::any value);
         std::optional<ExpresserError>
         addLocalVariable(const std::string &function_name, const std::string &variable_name, std::optional<std::any> value);

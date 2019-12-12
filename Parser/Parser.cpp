@@ -60,32 +60,40 @@ namespace expresser {
     std::optional<ExpresserError> Parser::addGlobalVariable(const std::string &variable_name, std::optional<std::any> value) {
         if (isGlobalVariable(variable_name))
             return std::make_optional<ExpresserError>(_tokens[_offset].GetStartPos(), ErrorCode::ErrDuplicateDeclaration);
-        // TODO: 堆栈上分配全局变量
+        // 全局堆栈上分配全局变量
+        if (value->has_value()) {
+            // 有初始值，用push
+            auto val = std::any_cast<int32_t>(value.value());
+            auto index = _start_instruments.size();
+            _start_instruments.emplace_back(Instruction(index, Operation::IPUSH, 4, val));
+            _global_variables.insert({variable_name, _global_sp++});
+        } else {
+            // 无初始值，用snew
+            auto index = _start_instruments.size();
+            _start_instruments.emplace_back(Instruction(index, Operation::SNEW, 4, 1));
+            _global_uninitialized.insert({variable_name, _global_sp++});
+        }
+        return {};
     }
 
-    std::optional<ExpresserError> Parser::addFunction(const std::string &function_name, std::vector<FunctionParam> params) {
+    std::optional<ExpresserError> Parser::addFunction(const std::string &function_name, const std::vector<FunctionParam> &params) {
         auto err = addGlobalConstant(function_name, 'S', function_name);
         if (err.has_value())
             return err.value();
-
-        Function func;
-        func._index = _functions.size();
-        func._name_index = _global_constants.find(function_name)->second._index;
-        func._params_size = params.size();
-        func._level = 1;
-        func._params = params;
-
+        Function func(_functions.size(), _global_constants.find(function_name)->second._index, params.size(), params);
         _functions[function_name] = func;
         return {};
     }
 
-    std::optional<ExpresserError> Parser::addInstrument(std::string function_name, Instruction instruction) {
+    std::optional<ExpresserError> Parser::addFunctionInstrument(const std::string &function_name, Instruction instruction) {
         // TODO: instruction's factory
         auto err = getFunction(function_name);
         if (err.second.has_value())
             return err.second.value();
         auto func = err.first.value();
+        instruction.SetIndex(func._instructions.size());
         func._instructions.push_back(instruction);
+        return {};
     }
 
     std::optional<ExpresserError>
@@ -96,7 +104,12 @@ namespace expresser {
         auto func = err.first.value();
         if (isLocalVariable(function_name, constant_name))
             return std::make_optional<ExpresserError>(_current_pos, ErrorCode::ErrDuplicateDeclaration);
-        // TODO: 堆栈上分配局部常量
+        // 局部堆栈上分配局部常量
+        auto val = std::any_cast<int32_t>(value);
+        auto index = func._instructions.size();
+        func._instructions.emplace_back(Instruction(index, Operation::IPUSH, 4, val));
+        func._local_constants.insert({constant_name, _global_sp++});
+        return {};
     }
 
     std::optional<ExpresserError>
@@ -107,7 +120,20 @@ namespace expresser {
         auto func = err.first.value();
         if (isLocalVariable(function_name, variable_name))
             return std::make_optional<ExpresserError>(_current_pos, ErrorCode::ErrDuplicateDeclaration);
-        // TODO: 堆栈分配局部变量
+        // 局部堆栈上分配局部变量
+        if (value->has_value()) {
+            // 有初始值，用push
+            auto val = std::any_cast<int32_t>(value.value());
+            auto index = func._instructions.size();
+            func._instructions.emplace_back(Instruction(index, Operation::IPUSH, 4, val));
+            func._local_vars.insert({variable_name, _global_sp++});
+        } else {
+            // 无初始值，用snew
+            auto index = func._instructions.size();
+            func._instructions.emplace_back(Instruction(index, Operation::SNEW, 4, 1));
+            func._local_uninitialized.insert({variable_name, _global_sp++});
+        }
+        return {};
     }
 
     std::pair<std::optional<int32_t>, std::optional<ExpresserError>>
