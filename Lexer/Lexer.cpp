@@ -413,7 +413,8 @@ namespace expresser {
                     // 清空ss，本部分不使用ss
                     ss.str(std::string(""));
                     // for EASCII
-                    auto ch = static_cast<unsigned char>(current_char.value());
+                    auto ch = current_char.value();
+                    int32_t _result = static_cast<int32_t>(ch);
                     if (expresser::isaccch(ch) && ch != '\'' && ch != '\\' && ch != '\n' && ch != '\r') {
                         // <c-char>
                         current_char = nextChar();
@@ -445,18 +446,19 @@ namespace expresser {
                             current_char = nextChar();
                             if (!current_char.has_value() || current_char.value() != '\'')
                                 return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
+                            _result = static_cast<int32_t>(ch);
                         } else if (ch == 'x') {
-                            char arr[2] = {0, 0};
+                            uint32_t arr[2] = {0, 0};
                             // \x
                             // 连着两个xdigit，再连着一个单引号
-                            for (char &elem : arr) {
+                            for (auto &elem : arr) {
                                 current_char = nextChar();
                                 if (current_char.has_value()) {
                                     ch = current_char.value();
                                     if (expresser::isdigit(ch))
                                         ch -= '0';
                                     else if (expresser::isxdigit(ch))
-                                        ch -= 'a' + 10;
+                                        ch -= ('a' - 10);
                                     else
                                         return errorFactory(ErrorCode::ErrInvalidCharacter);
                                     elem = ch;
@@ -466,7 +468,7 @@ namespace expresser {
                             current_char = nextChar();
                             if (!current_char.has_value() || current_char.value() != '\'')
                                 return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
-                            ch = (arr[0] << 4) + arr[1];
+                            _result = (arr[0] * 16) + arr[1];
                         } else {
                             //error
                             return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
@@ -475,7 +477,7 @@ namespace expresser {
                         return errorFactory(ErrorCode::ErrInvalidCharacter);
                     }
                     return std::make_pair(
-                            std::make_optional<Token>(TokenType::CHARLITERAL, static_cast<int32_t>(ch), pos, currPos()),
+                            std::make_optional<Token>(TokenType::CHARLITERAL, _result, pos, currPos()),
                             std::optional<ExpresserError>());
                     break;
                 }
@@ -499,6 +501,7 @@ namespace expresser {
                             current_char = nextChar();
                             if (!current_char.has_value())
                                 return errorFactory(ErrorCode::ErrEOF);
+                            ch = current_char.value();
                             if (ch == 'r' || ch == 'n' || ch == 't' || ch == '\\' || ch == '\'' || ch == '"') {
                                 // \{n,r,t,\}
                                 switch (ch) {
@@ -516,19 +519,25 @@ namespace expresser {
                                 }
                                 stringliteralstream << ch;
                             } else if (ch == 'x') {
+                                uint32_t arr[2] = {0, 0};
                                 // \x
-                                ss.clear();
-                                ss << '\\';
-                                ss << ch;
-                                for (int i = 0; i < 2; i++) {
+                                // 连着两个xdigit，再连着一个单引号
+                                for (auto &elem : arr) {
                                     current_char = nextChar();
-                                    if (current_char.has_value() && expresser::isxdigit(current_char.value()))
-                                        ss << current_char.value();
-                                    else
-                                        return errorFactory(ErrorCode::ErrEOF);
+                                    if (current_char.has_value()) {
+                                        ch = current_char.value();
+                                        if (expresser::isdigit(ch))
+                                            ch -= '0';
+                                        else if (expresser::isxdigit(ch))
+                                            ch -= ('a' - 10);
+                                        else
+                                            return errorFactory(ErrorCode::ErrInvalidCharacter);
+                                        elem = ch;
+                                    } else
+                                        return errorFactory(ErrorCode::ErrInvalidCharacter);
                                 }
-                                ss >> ch;
-                                stringliteralstream << ch;
+                                auto _result = static_cast<unsigned char>((arr[0] * 16) + arr[1]);
+                                stringliteralstream << _result;
                             } else
                                 return errorFactory(ErrorCode::ErrInvalidCharacter);
                         } else if (ch == '"')
@@ -537,13 +546,9 @@ namespace expresser {
                             return errorFactory(ErrorCode::ErrInvalidCharacter);
                     }
                     std::string val;
-                    stringliteralstream >> val;
-                    if (stringliteralstream.fail())
-                        //error
-                        return errorFactory(ErrorCode::ErrInvalidStringLiteral);
-                    else
-                        return std::make_pair(std::make_optional<Token>(TokenType::STRINGLITERAL, val, pos, currPos()),
-                                              std::optional<ExpresserError>());
+                    val.append(stringliteralstream.str());
+                    return std::make_pair(std::make_optional<Token>(TokenType::STRINGLITERAL, val, pos, currPos()),
+                                          std::optional<ExpresserError>());
                     break;
                 }
                 default: {
