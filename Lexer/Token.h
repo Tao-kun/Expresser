@@ -12,33 +12,28 @@
 #include "Error/Error.h"
 
 namespace expresser {
-    // 提前列出，待文法放出后删除多余部分
     enum TokenType : char {
-        STRINGLITERAL, /* \"(\\.|[^"\\])*\" */
-        IDENTIFIER, /* [a-zA-Z_]\w* 或 (?!\d)\w+ */
-        INTEGER, /* \d+ */
-        CHARLITERAL, /* \'[\x00-\xFF]\' */
+        STRINGLITERAL,
+        IDENTIFIER,
+        INTEGER,
+        CHARLITERAL,
         DOUBLE,
-
+        VOID,
         RESERVED,
-
         PLUS, /* ARITHMETIC */
         MINUS,
         MULTIPLE,
         DIVIDE,
-
         LESS, /* RELATION */
         GREATER,
         LESSEQUAL,
         GREATEREQUAL,
         EQUAL,
         NOTEQUAL,
-
         LEFTBRACKET, /* BRACKETS */
         RIGHTBRACKET,
         LEFTBRACE,
         RIGHTBRACE,
-
         ASSIGN, /* OTHER*/
         SEMICOLON,
         COLON,

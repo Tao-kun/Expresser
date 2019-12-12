@@ -67,6 +67,9 @@ namespace fmt {
                 case expresser::ErrInvalidFunctionDeclaration:
                     name = "InvalidFunctionDeclaration";
                     break;
+                case expresser::ErrInvalidFunctionReturnType:
+                    name = "ErrInvalidFunctionReturnType";
+                    break;
                 case expresser::ErrInvalidIdentifier:
                     name = "InvalidIdentifier";
                     break;
@@ -78,6 +81,9 @@ namespace fmt {
                     break;
                 case expresser::ErrInvalidNotEqual:
                     name = "InvalidNotEqual";
+                    break;
+                case expresser::ErrInvalidParameter:
+                    name = "ErrInvalidParameter";
                     break;
                 case expresser::ErrInvalidPrint:
                     name = "InvalidPrint";
@@ -96,6 +102,12 @@ namespace fmt {
                     break;
                 case expresser::ErrIntegerOverflow:
                     name = "IntegerOverflow";
+                    break;
+                case expresser::ErrMissingBrace:
+                    name = "ErrMissingBrace";
+                    break;
+                case expresser::ErrMissingBracket:
+                    name = "ErrMissingBracket";
                     break;
                 case expresser::ErrNeedIdentifier:
                     name = "NeedIdentifier";
@@ -120,6 +132,9 @@ namespace fmt {
                     break;
                 case expresser::ErrUndeclaredIdentifier:
                     name = "UndeclaredIdentifier";
+                    break;
+                default:
+                    name = "Unhandled Error";
                     break;
             }
             return format_to(ctx.out(), name);
@@ -163,6 +178,9 @@ namespace fmt {
                     break;
                 case expresser::DOUBLE:
                     name = "DOUBLE";
+                    break;
+                case expresser::VOID:
+                    name = "VOID";
                     break;
                 case expresser::RESERVED:
                     name = "RESERVED";
@@ -240,12 +258,12 @@ namespace fmt {
     };
 
     template<>
-    struct formatter<expresser::Param> {
+    struct formatter<expresser::InstructionParam> {
         template<typename ParseContext>
         constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
 
         template<typename FormatContext>
-        auto format(expresser::Param *param, FormatContext &ctx) {
+        auto format(expresser::InstructionParam *param, FormatContext &ctx) {
             std::string name;
             int32_t value;
             if (param[0]._size == 0)

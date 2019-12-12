@@ -68,7 +68,7 @@ namespace expresser {
         CSCAN = 0xb2
     };
 
-    struct Param {
+    struct InstructionParam {
         uint8_t _size;
         unsigned char _value[4];
     };
@@ -77,7 +77,7 @@ namespace expresser {
     private:
         uint32_t _index;
         Operation _opcode;
-        struct Param _params[2]{};
+        struct InstructionParam _params[2]{};
 
     public:
         Instruction(uint32_t index, Operation _op) {
@@ -116,7 +116,7 @@ namespace expresser {
             return _opcode;
         }
 
-        Param *GetParam() {
+        InstructionParam *GetParam() {
             return _params;
         }
     };

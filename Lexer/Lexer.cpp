@@ -498,46 +498,27 @@ namespace expresser {
                             //<escape-seq> ::=
                             //      '\\' | "\'" | '\"' | '\n' | '\r' | '\t'
                             //    | '\x'<hexadecimal-digit><hexadecimal-digit>
+                            stringliteralstream << ch;
                             current_char = nextChar();
                             if (!current_char.has_value())
                                 return errorFactory(ErrorCode::ErrEOF);
                             ch = current_char.value();
                             if (ch == 'r' || ch == 'n' || ch == 't' || ch == '\\' || ch == '\'' || ch == '"') {
                                 // \{n,r,t,\}
-                                switch (ch) {
-                                    case 'r':
-                                        ch = '\r';
-                                        break;
-                                    case 'n':
-                                        ch = '\n';
-                                        break;
-                                    case 't':
-                                        ch = '\t';
-                                        break;
-                                    default:
-                                        break;
-                                }
                                 stringliteralstream << ch;
                             } else if (ch == 'x') {
-                                uint32_t arr[2] = {0, 0};
-                                // \x
-                                // 连着两个xdigit，再连着一个单引号
-                                for (auto &elem : arr) {
+                                stringliteralstream << ch;
+                                for (int i = 0; i < 2; i++) {
                                     current_char = nextChar();
                                     if (current_char.has_value()) {
                                         ch = current_char.value();
-                                        if (expresser::isdigit(ch))
-                                            ch -= '0';
-                                        else if (expresser::isxdigit(ch))
-                                            ch -= ('a' - 10);
+                                        if (expresser::isxdigit(ch))
+                                            stringliteralstream << ch;
                                         else
                                             return errorFactory(ErrorCode::ErrInvalidCharacter);
-                                        elem = ch;
                                     } else
                                         return errorFactory(ErrorCode::ErrInvalidCharacter);
                                 }
-                                auto _result = static_cast<unsigned char>((arr[0] * 16) + arr[1]);
-                                stringliteralstream << _result;
                             } else
                                 return errorFactory(ErrorCode::ErrInvalidCharacter);
                         } else if (ch == '"')
