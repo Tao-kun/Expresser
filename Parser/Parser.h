@@ -143,8 +143,8 @@ namespace expresser {
         std::optional<ExpresserError> parseFunctionCall();
         std::optional<ExpresserError> parseParameterDeclarations(std::vector<FunctionParam> &params);
         std::optional<ExpresserError> parseFunctionDefinition();
-        std::optional<ExpresserError> parseCompoundStatement();
-        std::optional<ExpresserError> parseLocalVariableDeclarations();
+        std::optional<ExpresserError> parseCompoundStatement(std::string function_name);
+        std::optional<ExpresserError> parseLocalVariableDeclarations(std::string function_name);
         std::optional<ExpresserError> parseStatements();
         std::optional<ExpresserError> parseConditionStatement();
         std::optional<ExpresserError> parseLoopStatement();

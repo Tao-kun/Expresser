@@ -109,6 +109,9 @@ namespace fmt {
                 case expresser::ErrMissingBracket:
                     name = "ErrMissingBracket";
                     break;
+                case expresser::ErrNeedAssignSymbol:
+                    name = "NeedAssignSymbol";
+                    break;
                 case expresser::ErrNeedIdentifier:
                     name = "NeedIdentifier";
                     break;

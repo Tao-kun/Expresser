@@ -142,7 +142,7 @@ namespace expresser {
         auto val = std::any_cast<int32_t>(value);
         auto index = func._instructions.size();
         func._instructions.emplace_back(Instruction(index, Operation::IPUSH, 4, val));
-        func._local_constants.insert({constant_name, {_global_sp++, type}});
+        func._local_constants.insert({constant_name, {func._local_sp++, type}});
         return {};
     }
 
@@ -161,12 +161,12 @@ namespace expresser {
             auto val = std::any_cast<int32_t>(value.value());
             auto index = func._instructions.size();
             func._instructions.emplace_back(Instruction(index, Operation::IPUSH, 4, val));
-            func._local_vars.insert({variable_name, {_global_sp++, type}});
+            func._local_vars.insert({variable_name, {func._local_sp++, type}});
         } else {
             // 无初始值，用snew
             auto index = func._instructions.size();
             func._instructions.emplace_back(Instruction(index, Operation::SNEW, 4, 1));
-            func._local_uninitialized.insert({variable_name, {_global_sp++, type}});
+            func._local_uninitialized.insert({variable_name, {func._local_sp++, type}});
         }
         return {};
     }
@@ -317,15 +317,16 @@ namespace expresser {
                 if (!token.has_value())
                     return errorFactory(ErrorCode::ErrConstantNeedValue);
                 // 只会是int/char中一种
-                Token type = token.value();
-                TokenType const_type = stringTypeToTokenType(type.GetStringValue()).value();
+                TokenType const_type = stringTypeToTokenType(token->GetStringValue()).value();
                 for (;;) {
                     // IDENTFIER
                     token = nextToken();
                     if (!token.has_value() || token->GetType() != IDENTIFIER)
                         return errorFactory(ErrorCode::ErrNeedIdentifier);
-                    Token identifier = token.value();
-                    addGlobalConstant(identifier.GetStringValue(), const_type);
+                    std::string identifier = token->GetStringValue();
+                    if (isGlobalVariable(identifier))
+                        return errorFactory(ErrorCode::ErrDuplicateDeclaration);
+                    addGlobalConstant(identifier, const_type);
 
                     // =
                     token = nextToken();
@@ -333,7 +334,7 @@ namespace expresser {
                         return errorFactory(ErrorCode::ErrInvalidAssignment);
 
                     // LOADA取地址
-                    auto const_index = getIndex(identifier.GetStringValue()).first.value();
+                    auto const_index = getIndex(identifier).first.value();
                     auto index = _start_instruments.size();
                     _start_instruments.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, const_index));
 
@@ -365,14 +366,15 @@ namespace expresser {
                     rollback();
                     return {};
                 }
-                auto type = token.value();
-                TokenType var_type = stringTypeToTokenType(type.GetStringValue()).value();
+                TokenType var_type = stringTypeToTokenType(token->GetStringValue()).value();
                 for (;;) {
                     // IDENTFIER
                     token = nextToken();
                     if (!token.has_value() || token->GetType() != IDENTIFIER)
                         return errorFactory(ErrorCode::ErrNeedIdentifier);
-                    auto identifier = token.value().GetStringValue();
+                    auto identifier = token->GetStringValue();
+                    if (isGlobalVariable(identifier))
+                        return errorFactory(ErrorCode::ErrDuplicateDeclaration);
                     // snew分配空间，因为不支持double所以slot为4
                     addGlobalVariable(identifier, var_type, {});
 
@@ -387,8 +389,8 @@ namespace expresser {
                     else if (token->GetType() == ASSIGN) {
                         // 加载预分配空间在栈中地址
                         auto index = _start_instruments.size();
-                        auto it = _global_uninitialized.find(identifier);
-                        _start_instruments.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, it->second._index));
+                        auto var_index = _global_sp - 1;
+                        _start_instruments.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, var_index));
 
                         // 解析<expression>
                         auto err = parseExpression(var_type);
@@ -397,15 +399,13 @@ namespace expresser {
 
                         // 此时全局栈的栈顶就是结果，次栈顶是目标地址
                         // istore
-                        index = _start_instruments.size();
-                        _start_instruments.emplace_back(Instruction(index, Operation::ISTORE));
-                        if (isGlobalUnInitializedVariable(identifier)) {
-                            it = _global_uninitialized.find(identifier);
-                            // 移入_global_variables
-                            _global_variables.insert({it->first, it->second});
-                            // 移出_global_uninitialized
-                            _global_uninitialized.erase(identifier);
-                        }
+                        _start_instruments.emplace_back(Instruction(index + 1, Operation::ISTORE));
+                        // 移出未初始化表
+                        auto it = _global_uninitialized.find(identifier);
+                        // 移入_global_variables
+                        _global_variables.insert({it->first, it->second});
+                        // 移出_global_uninitialized
+                        _global_uninitialized.erase(identifier);
 
                         // , or ;
                         token = nextToken();
@@ -466,7 +466,7 @@ namespace expresser {
             return err.value();
 
         // <compound-statement>
-        err = parseCompoundStatement();
+        err = parseCompoundStatement(function_name);
         if (err.has_value())
             return err.value();
 
@@ -525,7 +525,7 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseCompoundStatement() {
+    std::optional<ExpresserError> Parser::parseCompoundStatement(std::string function_name) {
         //<compound-statement> ::=
         //    '{' {<variable-declaration>} <statement-seq> '}'
         //<statement-seq> ::=
@@ -533,7 +533,7 @@ namespace expresser {
         auto token = nextToken();
         if (!token.has_value() || token->GetType() != LEFTBRACE)
             return errorFactory(ErrorCode::ErrMissingBrace);
-        auto err = parseLocalVariableDeclarations();
+        auto err = parseLocalVariableDeclarations(function_name);
         if (err.has_value())
             return err;
         err = parseStatements();
@@ -545,7 +545,7 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseLocalVariableDeclarations() {
+    std::optional<ExpresserError> Parser::parseLocalVariableDeclarations(std::string function_name) {
         // TODO:impl it
         //<variable-declaration> ::=
         //    [<const-qualifier>]<type-specifier><init-declarator-list>';'
@@ -556,6 +556,100 @@ namespace expresser {
         //<initializer> ::=
         //    '='<expression>
         // seekToken预读
+        auto token = nextToken();
+        if (!token.has_value())
+            return {};
+        Function function = getFunction(function_name).first.value();
+        if (token->GetType() == RESERVED && token->GetStringValue() == "const") {
+            // const
+            token = nextToken();
+            if (!token.has_value())
+                return errorFactory(ErrorCode::ErrConstantNeedValue);
+            TokenType const_type = stringTypeToTokenType(token->GetStringValue()).value();
+            for (;;) {
+                token = nextToken();
+                if (!token.has_value() || token->GetType() != IDENTIFIER)
+                    return errorFactory(ErrorCode::ErrNeedIdentifier);
+                std::string identifier = token->GetStringValue();
+                if (isLocalVariable(function_name, identifier))
+                    return errorFactory(ErrorCode::ErrDuplicateDeclaration);
+                addLocalConstant(function_name, const_type, identifier, {});
+
+                token = nextToken();
+                if (!token.has_value() || token->GetType() != ASSIGN)
+                    return errorFactory(ErrorCode::ErrNeedAssignSymbol);
+
+                auto const_index = getIndex(function_name, identifier).first.value();
+                auto index = function._instructions.size();
+                function._instructions.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, const_index));
+
+                auto err = parseExpression(const_type);
+                if (err.has_value())
+                    return err;
+
+                function._instructions.emplace_back(Instruction(index + 1, Operation::ISTORE));
+
+                token = nextToken();
+                if (token.has_value()) {
+                    if (token->GetType() == SEMICOLON)
+                        break;
+                    if (token->GetType() == COMMA)
+                        continue;
+                }
+                // 不是分号逗号、或者没值
+                return errorFactory(ErrorCode::ErrInvalidAssignment);
+            }
+        } else if (token->GetType() == RESERVED || isVariableType(token.value())) {
+            // var or func
+            // 预读判断函数
+            auto seek = seekToken(2);
+            if (seek.has_value() && seek->GetType() == LEFTBRACKET) {
+                // 回滚一个token
+                rollback();
+                return {};
+            }
+            TokenType var_type = stringTypeToTokenType(token->GetStringValue()).value();
+            for (;;) {
+                if (!token.has_value() || token->GetType() != IDENTIFIER)
+                    return errorFactory(ErrorCode::ErrNeedIdentifier);
+                auto identifier = token->GetStringValue();
+                if (isLocalVariable(function_name, identifier))
+                    return errorFactory(ErrorCode::ErrDuplicateDeclaration);
+                addLocalConstant(function_name, var_type, identifier, {});
+
+                token = nextToken();
+                if (!token.has_value())
+                    return errorFactory(ErrorCode::ErrEOF);
+                else if (token->GetType() == COMMA)
+                    continue;
+                else if (token->GetType() == SEMICOLON)
+                    break;
+                else if (token->GetType() == ASSIGN) {
+                    auto index = function._instructions.size();
+                    auto var_index = function._local_sp - 1;
+                    function._instructions.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, var_index));
+
+                    auto err = parseExpression(var_type);
+                    if (err.has_value())
+                        return err.value();
+
+                    function._instructions.emplace_back(Instruction(index + 1, Operation::ISTORE));
+                    auto it = function._local_uninitialized.find(identifier);
+                    function._local_vars.insert({it->first, it->second});
+                    function._local_uninitialized.erase(identifier);
+
+                    token = nextToken();
+                    if (token.has_value()) {
+                        if (token->GetType() == SEMICOLON)
+                            break;
+                        if (token->GetType() == COMMA)
+                            continue;
+                    }
+                    return errorFactory(ErrorCode::ErrInvalidAssignment);
+                } else
+                    return errorFactory(ErrorCode::ErrInvalidAssignment);
+            }
+        }
         return {};
     }
 

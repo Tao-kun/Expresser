@@ -40,6 +40,7 @@ namespace expresser {
         ErrIntegerOverflow,
         ErrMissingBrace,
         ErrMissingBracket,
+        ErrNeedAssignSymbol,
         ErrNeedIdentifier,
         ErrNeedVariableType,
         ErrNoSemicolon,
