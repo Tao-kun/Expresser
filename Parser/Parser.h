@@ -82,6 +82,8 @@ namespace expresser {
         std::vector<expresser::Instruction> _start_instruments;
         // 全局常量表
         std::map<std::string, Constant> _global_constants;
+        // 全局常量表（栈上）
+        std::map<std::string, Variable> _global_stack_constants;
         // 全局栈顶值
         int32_t _global_sp;
         // 全局变量在栈中地址
@@ -103,13 +105,16 @@ namespace expresser {
         void rollback();
         template<typename T>
         std::optional<ExpresserError> addGlobalConstant(const std::string &constant_name, char type, T value);
-        std::optional<ExpresserError> addGlobalVariable(const std::string &variable_name, TokenType type,std::optional<std::any> value);
+        std::optional<ExpresserError> addGlobalConstant(const std::string &variable_name, TokenType type);
+        std::optional<ExpresserError> addGlobalVariable(const std::string &variable_name, TokenType type, std::optional<std::any> value);
         std::optional<ExpresserError>
         addFunction(const std::string &function_name, const TokenType &return_type, const std::vector<FunctionParam> &params);
         std::optional<ExpresserError> addFunctionInstrument(const std::string &function_name, Instruction instruction);
-        std::optional<ExpresserError> addLocalConstant(const std::string &function_name, TokenType type, const std::string &constant_name, std::any value);
+        std::optional<ExpresserError>
+        addLocalConstant(const std::string &function_name, TokenType type, const std::string &constant_name, std::any value);
         std::optional<ExpresserError>
         addLocalVariable(const std::string &function_name, const std::string &variable_name, TokenType type, std::optional<std::any> value);
+        std::pair<std::optional<int32_t>, std::optional<ExpresserError>> getIndex(const std::string &variable_name);
         std::pair<std::optional<int32_t>, std::optional<ExpresserError>>
         getIndex(const std::string &function_name, const std::string &variable_name);
         std::pair<std::optional<Function>, std::optional<ExpresserError>> getFunction(const std::string &function_name);

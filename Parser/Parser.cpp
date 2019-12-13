@@ -65,9 +65,19 @@ namespace expresser {
     std::optional<ExpresserError> Parser::addGlobalConstant(const std::string &constant_name, char type, T value) {
         if (isGlobalVariable(constant_name))
             return errorFactory(ErrorCode::ErrDuplicateDeclaration);
-
+        // 一般只用来字符串
         Constant constant = Constant(_global_constants.size(), type, value);
         _global_constants.insert({constant_name, constant});
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::addGlobalConstant(const std::string &variable_name, TokenType type) {
+        if (isGlobalVariable(variable_name))
+            return errorFactory(ErrorCode::ErrDuplicateDeclaration);
+        // 只负责加入_global_stack_constants
+        auto index = _start_instruments.size();
+        _start_instruments.emplace_back(Instruction(index, Operation::SNEW, 4, 1));
+        _global_stack_constants.insert({variable_name, {_global_sp++, type}});
         return {};
     }
 
@@ -161,10 +171,26 @@ namespace expresser {
         return {};
     }
 
+    std::pair<std::optional<int32_t>, std::optional<ExpresserError>> Parser::getIndex(const std::string &variable_name) {
+        int32_t res = -1;
+        if (isGlobalVariable(variable_name)) {
+            if (_global_constants.find(variable_name) != _global_constants.end())
+                res = _global_constants[variable_name]._index;
+            else if (_global_stack_constants.find(variable_name) != _global_stack_constants.end())
+                res = _global_stack_constants[variable_name]._index;
+            else if (_global_uninitialized.find(variable_name) != _global_uninitialized.end())
+                res = _global_uninitialized[variable_name]._index;
+            else
+                res = _global_variables[variable_name]._index;
+        }
+        if (res != -1)
+            return std::make_pair(std::make_optional<int32_t>(res), std::optional<ExpresserError>());
+        return std::make_pair(std::optional<int32_t>(), errorFactory(ErrorCode::ErrUndeclaredIdentifier));
+    }
+
     std::pair<std::optional<int32_t>, std::optional<ExpresserError>>
     Parser::getIndex(const std::string &function_name, const std::string &variable_name) {
         // 先在本函数的变量区、常量区找，后在全局常量区找
-        // 只返回地址，供loadc/load/store使用
         int32_t res = -1;
         if (isLocalVariable(function_name, variable_name)) {
             auto err = getFunction(function_name);
@@ -179,18 +205,11 @@ namespace expresser {
             else
                 res = func._local_vars[variable_name]._index;
         } else if (isGlobalVariable(variable_name)) {
-            if (_global_constants.find(variable_name) != _global_constants.end())
-                res = _global_constants[variable_name]._index;
-            else if (_global_uninitialized.find(variable_name) != _global_uninitialized.end())
-                res = _global_uninitialized[variable_name]._index;
-            else
-                res = _global_variables[variable_name]._index;
+            return getIndex(variable_name);
         }
         if (res != -1)
-            return std::make_pair(std::make_optional<int32_t>(res),
-                                  std::optional<ExpresserError>());
-        return std::make_pair(std::optional<int32_t>(),
-                              errorFactory(ErrorCode::ErrUndeclaredIdentifier));
+            return std::make_pair(std::make_optional<int32_t>(res), std::optional<ExpresserError>());
+        return std::make_pair(std::optional<int32_t>(), errorFactory(ErrorCode::ErrUndeclaredIdentifier));
     }
 
     std::pair<std::optional<Function>, std::optional<ExpresserError>> Parser::getFunction(const std::string &function_name) {
@@ -216,7 +235,8 @@ namespace expresser {
     }
 
     bool Parser::isGlobalConstant(const std::string &variable_name) {
-        return _global_constants.find(variable_name) != _global_constants.end();
+        return _global_constants.find(variable_name) != _global_constants.end() ||
+               _global_stack_constants.find(variable_name) != _global_stack_constants.end();
     }
 
     bool Parser::isLocalVariable(const std::string &function_name, const std::string &variable_name) {
@@ -258,7 +278,8 @@ namespace expresser {
     }
 
     bool Parser::isConstant(const std::string &function_name, const std::string &variable_name) {
-        return isLocalConstant(function_name, variable_name) || isGlobalConstant(variable_name);
+        return isLocalConstant(function_name, variable_name) ||
+               isGlobalConstant(variable_name);
     }
 
     std::optional<ExpresserError> Parser::errorFactory(ErrorCode code) {
@@ -287,7 +308,6 @@ namespace expresser {
         //    '='<expression>
         // 0个或无数个
         for (;;) {
-            // TODO: impl it
             auto token = nextToken();
             if (!token.has_value())
                 return {};
@@ -305,17 +325,26 @@ namespace expresser {
                     if (!token.has_value() || token->GetType() != IDENTIFIER)
                         return errorFactory(ErrorCode::ErrNeedIdentifier);
                     Token identifier = token.value();
+                    addGlobalConstant(identifier.GetStringValue(), const_type);
 
                     // =
                     token = nextToken();
                     if (!token.has_value() || token->GetType() != ASSIGN)
                         return errorFactory(ErrorCode::ErrInvalidAssignment);
 
-                    // <expression>
-                    // TODO: 将结果存入常量表中
+                    // LOADA取地址
+                    auto const_index = getIndex(identifier.GetStringValue()).first.value();
+                    auto index = _start_instruments.size();
+                    _start_instruments.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, const_index));
+
+                    // 解析<expression>
                     auto err = parseExpression(const_type);
                     if (err.has_value())
                         return err.value();
+
+                    // ISTORE存回
+                    // 此时栈顶为<expression>结果，次栈顶为LOADA取出的地址
+                    _start_instruments.emplace_back(Instruction(index + 1, Operation::ISTORE));
 
                     // , or ;
                     token = nextToken();
@@ -360,10 +389,12 @@ namespace expresser {
                         auto index = _start_instruments.size();
                         auto it = _global_uninitialized.find(identifier);
                         _start_instruments.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, it->second._index));
+
                         // 解析<expression>
                         auto err = parseExpression(var_type);
                         if (err.has_value())
                             return err.value();
+
                         // 此时全局栈的栈顶就是结果，次栈顶是目标地址
                         // istore
                         index = _start_instruments.size();
@@ -390,7 +421,8 @@ namespace expresser {
                         return errorFactory(ErrorCode::ErrInvalidAssignment);
                 }
             } else
-                return errorFactory(ErrorCode::ErrInvalidInput);
+                // 可能是函数声明，先不报错
+                return {};
         }
         return {};
     }
