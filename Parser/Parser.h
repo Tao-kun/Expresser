@@ -52,7 +52,7 @@ namespace expresser {
         int32_t _name_index{};
         int32_t _params_size{};
         int32_t _level{};
-        TokenType _return_type;
+        TokenType _return_type{};
         std::vector<FunctionParam> _params;
 
         // 局部栈顶值，初始值为参数个数
@@ -81,7 +81,8 @@ namespace expresser {
         // .start段的代码
         std::vector<expresser::Instruction> _start_instruments;
         // 全局常量表
-        std::map<std::string, Constant> _global_constants;
+        std::vector<Constant> _global_constants;
+        std::map<std::string, int32_t> _global_constants_index;
         // 全局常量表（栈上）
         std::map<std::string, Variable> _global_stack_constants;
         // 全局栈顶值
@@ -109,7 +110,6 @@ namespace expresser {
         std::optional<ExpresserError> addGlobalVariable(const std::string &variable_name, TokenType type, std::optional<std::any> value);
         std::optional<ExpresserError>
         addFunction(const std::string &function_name, const TokenType &return_type, const std::vector<FunctionParam> &params);
-        std::optional<ExpresserError> addFunctionInstrument(const std::string &function_name, Instruction instruction);
         std::optional<ExpresserError>
         addLocalConstant(const std::string &function_name, TokenType type, const std::string &constant_name, std::any value);
         std::optional<ExpresserError>
@@ -129,6 +129,8 @@ namespace expresser {
         bool isInitialized(const std::string &function_name, const std::string &variable_name);
         bool isUnInitialized(const std::string &function_name, const std::string &variable_name);
         bool isConstant(const std::string &function_name, const std::string &variable_name);
+        std::optional<TokenType> getVariableType(const std::string &variable_name);
+        std::optional<TokenType> getVariableType(const std::string &function_name, const std::string &variable_name);
         std::optional<ExpresserError> errorFactory(ErrorCode code);
 
         // 语法制导翻译
@@ -136,24 +138,24 @@ namespace expresser {
         std::optional<ExpresserError> parseProgram();
         std::optional<ExpresserError> parseGlobalDeclarations();
         std::optional<ExpresserError> parseFunctionDefinitions();
-        std::optional<ExpresserError> parseExpression(TokenType type);
-        std::optional<ExpresserError> parseMultiplicativeExpression(TokenType type);
-        std::optional<ExpresserError> parseUnaryExpression(TokenType type);
-        std::optional<ExpresserError> parsePrimaryExpression(TokenType type);
-        std::optional<ExpresserError> parseFunctionCall();
+        std::optional<ExpresserError> parseExpression(TokenType type, std::optional<Function> function);
+        std::optional<ExpresserError> parseMultiplicativeExpression(TokenType type, std::optional<Function> function);
+        std::optional<ExpresserError> parseUnaryExpression(TokenType type, std::optional<Function> function);
+        std::optional<ExpresserError> parsePrimaryExpression(TokenType type, std::optional<Function> function);
+        std::optional<ExpresserError> parseFunctionCall(Function &function);
         std::optional<ExpresserError> parseParameterDeclarations(std::vector<FunctionParam> &params);
         std::optional<ExpresserError> parseFunctionDefinition();
-        std::optional<ExpresserError> parseCompoundStatement(std::string function_name);
-        std::optional<ExpresserError> parseLocalVariableDeclarations(std::string function_name);
-        std::optional<ExpresserError> parseStatements();
-        std::optional<ExpresserError> parseConditionStatement();
-        std::optional<ExpresserError> parseLoopStatement();
-        std::optional<ExpresserError> parseJumpStatement();
-        std::optional<ExpresserError> parsePrintStatement();
-        std::optional<ExpresserError> parseScanStatement();
-        std::optional<ExpresserError> parseAssignmentExpression();
+        std::optional<ExpresserError> parseCompoundStatement(Function &function);
+        std::optional<ExpresserError> parseLocalVariableDeclarations(Function &function);
+        std::optional<ExpresserError> parseStatements(Function &function);
+        std::optional<ExpresserError> parseConditionStatement(Function &function);
+        std::optional<ExpresserError> parseLoopStatement(Function &function);
+        std::optional<ExpresserError> parseJumpStatement(Function &function);
+        std::optional<ExpresserError> parsePrintStatement(Function &function);
+        std::optional<ExpresserError> parseScanStatement(Function &function);
+        std::optional<ExpresserError> parseAssignmentExpression(Function &function);
         // 拓展C0
-        std::optional<ExpresserError> parseCastExpression();
+        std::optional<ExpresserError> parseCastExpression(Function &function);
 
         // 静态函数
         static bool isVariableType(const Token &token);

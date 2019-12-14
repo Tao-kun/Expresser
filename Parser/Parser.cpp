@@ -66,8 +66,9 @@ namespace expresser {
         if (isGlobalVariable(constant_name))
             return errorFactory(ErrorCode::ErrDuplicateDeclaration);
         // 一般只用来字符串
-        Constant constant = Constant(_global_constants.size(), type, value);
-        _global_constants.insert({constant_name, constant});
+        int32_t index = _global_constants.size();
+        _global_constants.emplace_back(Constant(index, type, value));
+        _global_constants_index.insert({constant_name, index});
         return {};
     }
 
@@ -106,7 +107,7 @@ namespace expresser {
         auto err = addGlobalConstant(function_name, 'S', function_name);
         if (err.has_value())
             return err.value();
-        Function func(_functions.size(), _global_constants.find(function_name)->second._index, params.size(), return_type, params);
+        Function func(_functions.size(), _global_constants_index.find(function_name)->second, params.size(), return_type, params);
         _functions[function_name] = func;
         // 把参数信息放入函数变量、常量表中
         for (int32_t i = 0; i < params.size(); i++) {
@@ -116,17 +117,6 @@ namespace expresser {
             else
                 func._local_vars.insert({p._value, {i, p._type}});
         }
-        return {};
-    }
-
-    std::optional<ExpresserError> Parser::addFunctionInstrument(const std::string &function_name, Instruction instruction) {
-        // TODO: instruction's factory
-        auto err = getFunction(function_name);
-        if (err.second.has_value())
-            return err.second.value();
-        auto func = err.first.value();
-        instruction.SetIndex(func._instructions.size());
-        func._instructions.push_back(instruction);
         return {};
     }
 
@@ -174,8 +164,8 @@ namespace expresser {
     std::pair<std::optional<int32_t>, std::optional<ExpresserError>> Parser::getIndex(const std::string &variable_name) {
         int32_t res = -1;
         if (isGlobalVariable(variable_name)) {
-            if (_global_constants.find(variable_name) != _global_constants.end())
-                res = _global_constants[variable_name]._index;
+            if (_global_constants_index.find(variable_name) != _global_constants_index.end())
+                res = _global_constants_index[variable_name];
             else if (_global_stack_constants.find(variable_name) != _global_stack_constants.end())
                 res = _global_stack_constants[variable_name]._index;
             else if (_global_uninitialized.find(variable_name) != _global_uninitialized.end())
@@ -235,7 +225,7 @@ namespace expresser {
     }
 
     bool Parser::isGlobalConstant(const std::string &variable_name) {
-        return _global_constants.find(variable_name) != _global_constants.end() ||
+        return _global_constants_index.find(variable_name) != _global_constants_index.end() ||
                _global_stack_constants.find(variable_name) != _global_stack_constants.end();
     }
 
@@ -280,6 +270,30 @@ namespace expresser {
     bool Parser::isConstant(const std::string &function_name, const std::string &variable_name) {
         return isLocalConstant(function_name, variable_name) ||
                isGlobalConstant(variable_name);
+    }
+
+    std::optional<TokenType> Parser::getVariableType(const std::string &variable_name) {
+        if (isGlobalConstant(variable_name))
+            return _global_stack_constants[variable_name]._type;
+        if (isGlobalVariable(variable_name))
+            return _global_variables[variable_name]._type;
+        if (isGlobalUnInitializedVariable(variable_name))
+            return _global_uninitialized[variable_name]._type;
+        return {};
+    }
+
+    std::optional<TokenType> Parser::getVariableType(const std::string &function_name, const std::string &variable_name) {
+        auto err = getFunction(function_name);
+        if (!err.second.has_value())
+            return {};
+        auto _func = err.first.value();
+        if (isLocalConstant(function_name, variable_name))
+            return _func._local_constants[variable_name]._type;
+        if (isLocalVariable(function_name, variable_name))
+            return _func._local_vars[variable_name]._type;
+        if (isLocalUnInitializedVariable(function_name, variable_name))
+            return _func._local_uninitialized[variable_name]._type;
+        return {};
     }
 
     std::optional<ExpresserError> Parser::errorFactory(ErrorCode code) {
@@ -339,7 +353,7 @@ namespace expresser {
                     _start_instruments.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, const_index));
 
                     // 解析<expression>
-                    auto err = parseExpression(const_type);
+                    auto err = parseExpression(const_type, {});
                     if (err.has_value())
                         return err.value();
 
@@ -393,7 +407,7 @@ namespace expresser {
                         _start_instruments.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, var_index));
 
                         // 解析<expression>
-                        auto err = parseExpression(var_type);
+                        auto err = parseExpression(var_type, {});
                         if (err.has_value())
                             return err.value();
 
@@ -466,7 +480,8 @@ namespace expresser {
             return err.value();
 
         // <compound-statement>
-        err = parseCompoundStatement(function_name);
+        auto function = _functions[function_name];
+        err = parseCompoundStatement(function);
         if (err.has_value())
             return err.value();
 
@@ -525,7 +540,7 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseCompoundStatement(std::string function_name) {
+    std::optional<ExpresserError> Parser::parseCompoundStatement(Function &function) {
         //<compound-statement> ::=
         //    '{' {<variable-declaration>} <statement-seq> '}'
         //<statement-seq> ::=
@@ -533,19 +548,19 @@ namespace expresser {
         auto token = nextToken();
         if (!token.has_value() || token->GetType() != LEFTBRACE)
             return errorFactory(ErrorCode::ErrMissingBrace);
-        auto err = parseLocalVariableDeclarations(function_name);
+        auto err = parseLocalVariableDeclarations(function);
         if (err.has_value())
             return err;
-        err = parseStatements();
+        err = parseStatements(function);
         if (err.has_value())
             return err;
         token = nextToken();
-        if (!token.has_value() || token->GetType() != LEFTBRACE)
+        if (!token.has_value() || token->GetType() != RIGHTBRACE)
             return errorFactory(ErrorCode::ErrMissingBrace);
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseLocalVariableDeclarations(std::string function_name) {
+    std::optional<ExpresserError> Parser::parseLocalVariableDeclarations(Function &function) {
         // TODO:impl it
         //<variable-declaration> ::=
         //    [<const-qualifier>]<type-specifier><init-declarator-list>';'
@@ -559,7 +574,8 @@ namespace expresser {
         auto token = nextToken();
         if (!token.has_value())
             return {};
-        Function function = getFunction(function_name).first.value();
+
+        auto function_name = std::get<std::string>(_global_constants[function._name_index]._value);
         if (token->GetType() == RESERVED && token->GetStringValue() == "const") {
             // const
             token = nextToken();
@@ -583,7 +599,7 @@ namespace expresser {
                 auto index = function._instructions.size();
                 function._instructions.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, const_index));
 
-                auto err = parseExpression(const_type);
+                auto err = parseExpression(const_type, function);
                 if (err.has_value())
                     return err;
 
@@ -629,7 +645,7 @@ namespace expresser {
                     auto var_index = function._local_sp - 1;
                     function._instructions.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, var_index));
 
-                    auto err = parseExpression(var_type);
+                    auto err = parseExpression(var_type, function);
                     if (err.has_value())
                         return err.value();
 
@@ -653,11 +669,11 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseStatements() {
+    std::optional<ExpresserError> Parser::parseStatements(Function &function) {
         //<statement-seq> ::=
         //	{<statement>}
         //<statement> ::=
-        //     '{' <statement-seq> '}'
+        //     '{' <statement-seq> '}'   --   不支持多级作用域
         //    |<condition-statement>
         //    |<loop-statement>
         //    |<jump-statement>
@@ -667,13 +683,66 @@ namespace expresser {
         //    |<function-call>';'
         //    |';'
         // 0或多个
+        std::optional<Token> token;
         for (;;) {
-
+            token = nextToken();
+            if (!token.has_value())
+                return errorFactory(ErrorCode::ErrEOF);
+            if (token->GetType() == RIGHTBRACE) {
+                // 右括号，函数结束
+                // 如果是void函数，添加ret
+                rollback();
+                return {};
+            }
+            if (token->GetType() == RESERVED && token->GetStringValue() == "if") {
+                rollback();
+                auto err = parseConditionStatement(function);
+                if (err.has_value())
+                    return err.value();
+            } else if (token->GetType() == RESERVED && (token->GetStringValue() == "do" || token->GetStringValue() == "while")) {
+                rollback();
+                auto err = parseLoopStatement(function);
+                if (err.has_value())
+                    return err.value();
+            } else if (token->GetType() == RESERVED && token->GetStringValue() == "return") {
+                rollback();
+                auto err = parseJumpStatement(function);
+                if (err.has_value())
+                    return err.value();
+            } else if (token->GetType() == RESERVED && token->GetStringValue() == "print") {
+                rollback();
+                auto err = parsePrintStatement(function);
+                if (err.has_value())
+                    return err.value();
+            } else if (token->GetType() == RESERVED && token->GetStringValue() == "scan") {
+                rollback();
+                auto err = parseScanStatement(function);
+                if (err.has_value())
+                    return err.value();
+            } else if (token->GetType() == IDENTIFIER) {
+                // TODO: function call or assign
+                auto seek = seekToken(1);
+                std::optional<ExpresserError> err;
+                if (!seek.has_value() ||
+                    (seek->GetType() != LEFTBRACKET && seek->GetType() != IDENTIFIER))
+                    return errorFactory(ErrorCode::ErrEOF);
+                rollback();
+                if (seek->GetType() == LEFTBRACKET)
+                    err = parseFunctionCall(function);
+                else
+                    err = parseAssignmentExpression(function);
+                if (err.has_value())
+                    return err.value();
+            } else if (token->GetType() == SEMICOLON) {
+                continue;
+            } else {
+                return errorFactory(ErrorCode::ErrInvalidStatement);
+            }
         }
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseConditionStatement() {
+    std::optional<ExpresserError> Parser::parseConditionStatement(Function &function) {
         //<condition> ::=
         //     <expression>[<relational-operator><expression>]
         //<condition-statement> ::=
@@ -681,22 +750,41 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseLoopStatement() {
+    std::optional<ExpresserError> Parser::parseLoopStatement(Function &function) {
         //<loop-statement> ::=
         //    'while' '(' <condition> ')' <statement>
         //   |'do' <statement> 'while' '(' <condition> ')' ';'   --   拓展C0，`do...while`
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseJumpStatement() {
+    std::optional<ExpresserError> Parser::parseJumpStatement(Function &function) {
         //<jump-statement> ::=
         //    <return-statement>
         //<return-statement> ::=
         //    'return' [<expression>] ';'
+        // 先跳过'return'
+        auto return_type = function._return_type;
+        auto token = nextToken();
+        token = nextToken();
+        if (!token.has_value())
+            return errorFactory(ErrorCode::ErrEOF);
+        if (return_type == VOID) {
+            if (token->GetType() != SEMICOLON)
+                return errorFactory(ErrorCode::ErrReturnInVoidFunction);
+            auto index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(index, Operation::RET));
+        }
+
+        rollback();
+        auto err = parseExpression(return_type, function);
+        if (err.has_value())
+            return err.value();
+        auto index = function._instructions.size();
+        function._instructions.emplace_back(Instruction(index, Operation::IRET));
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parsePrintStatement() {
+    std::optional<ExpresserError> Parser::parsePrintStatement(Function &function) {
         //<print-statement> ::=
         //    'print' '(' [<printable-list>] ')' ';'
         //<printable-list>  ::=
@@ -706,19 +794,71 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseScanStatement() {
+    std::optional<ExpresserError> Parser::parseScanStatement(Function &function) {
         //<scan-statement> ::=
         //    'scan' '(' <identifier> ')' ';'
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseAssignmentExpression() {
+    std::optional<ExpresserError> Parser::parseAssignmentExpression(Function &function) {
+        //<assignment-expression>';'
         //<assignment-expression> ::=
         //    <identifier><assignment-operator><expression>
+        // 如果类型是char，则隐式转换
+        auto function_name = std::get<std::string>(_global_constants[function._name_index]._value);
+        auto token = nextToken();
+        auto var_name = token->GetStringValue();
+        TokenType var_type;
+
+        if (isConstant(function_name, var_name))
+            return errorFactory(ErrorCode::ErrAssignToConstant);
+
+        if (isLocalVariable(function_name, var_name)) {
+            var_type = getVariableType(function_name, var_name).value();
+            auto index = function._instructions.size();
+            auto var_index = getIndex(function_name, var_name).first.value();
+            function._instructions.emplace_back(Instruction(index, Operation::LOADA, 2, 0, 4, var_index));
+            // 移出未初始化区
+            if (isLocalUnInitializedVariable(function_name, var_name)) {
+                auto it = function._local_uninitialized.find(var_name);
+                function._local_vars.insert({it->first, it->second});
+                function._local_uninitialized.erase(var_name);
+            }
+        } else if (isGlobalVariable(var_name)) {
+            var_type = getVariableType(var_name).value();
+            auto index = function._instructions.size();
+            auto var_index = getIndex(var_name).first.value();
+            function._instructions.emplace_back(Instruction(index, Operation::LOADA, 2, 1, 4, var_index));
+            // 移出未初始化区
+            if (isGlobalUnInitializedVariable(var_name)) {
+                auto it = _global_uninitialized.find(var_name);
+                _global_variables.insert({it->first, it->second});
+                _global_uninitialized.erase(var_name);
+            }
+        } else {
+            return errorFactory(ErrorCode::ErrUndeclaredIdentifier);
+        }
+
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != ASSIGN)
+            return errorFactory(ErrorCode::ErrInvalidAssignment);
+
+        auto err = parseExpression(var_type, function);
+        if (err.has_value())
+            return err.value();
+
+        // TODO
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != SEMICOLON)
+            return errorFactory(ErrorCode::ErrNoSemicolon);
+
+        auto index = function._instructions.size();
+        function._instructions.emplace_back(Instruction(index, Operation::ISTORE));
+
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseExpression(TokenType type) {
+    std::optional<ExpresserError> Parser::parseExpression(TokenType type, std::optional<Function> function) {
         // TODO: impl it
         //<expression> ::=
         //    <additive-expression>
@@ -727,7 +867,7 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseMultiplicativeExpression(TokenType type) {
+    std::optional<ExpresserError> Parser::parseMultiplicativeExpression(TokenType type, std::optional<Function> function) {
         // TODO: impl it
         // 拓展C0，类型转换
         //<multiplicative-expression> ::=
@@ -735,14 +875,14 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseUnaryExpression(TokenType type) {
+    std::optional<ExpresserError> Parser::parseUnaryExpression(TokenType type, std::optional<Function> function) {
         // TODO: impl it
         //<unary-expression> ::=
         //    [<unary-operator>]<primary-expression>
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parsePrimaryExpression(TokenType type) {
+    std::optional<ExpresserError> Parser::parsePrimaryExpression(TokenType type, std::optional<Function> function) {
         // TODO: impl it
         //<primary-expression> ::=
         //     '('<expression>')'
@@ -753,7 +893,7 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseFunctionCall() {
+    std::optional<ExpresserError> Parser::parseFunctionCall(Function &function) {
         //<function-call> ::=
         //    <identifier> '(' [<expression-list>] ')'
         //<expression-list> ::=
@@ -761,7 +901,7 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseCastExpression() {
+    std::optional<ExpresserError> Parser::parseCastExpression(Function &function) {
         // 拓展C0，类型转换
         //<cast-expression> ::=
         //    {'('<type-specifier>')'}<unary-expression>

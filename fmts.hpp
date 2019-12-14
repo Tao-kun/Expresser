@@ -91,6 +91,9 @@ namespace fmt {
                 case expresser::ErrInvalidScan:
                     name = "InvalidScan";
                     break;
+                case expresser::ErrInvalidStatement:
+                    name = "InvalidStatement";
+                    break;
                 case expresser::ErrInvalidStringLiteral:
                     name = "InvalidStringLiteral";
                     break;
@@ -126,6 +129,9 @@ namespace fmt {
                     break;
                 case expresser::ErrNotDeclared:
                     name = "NotDeclared";
+                    break;
+                case expresser::ErrReturnInVoidFunction:
+                    name = "ReturnInVoidFunction";
                     break;
                 case expresser::ErrStreamError:
                     name = "StreamError";
