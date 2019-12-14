@@ -51,6 +51,14 @@ namespace expresser {
             "print", "scan"
     };
 
+    const static std::set<TokenType> relation_token_set{
+            LESS,
+            GREATER,
+            LESSEQUAL,
+            GREATEREQUAL,
+            EQUAL
+    };
+
     const static std::map<std::variant<char, std::string>, TokenType> simple_token_map{
             {'+',  PLUS},
             {'-',  MINUS},

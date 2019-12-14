@@ -690,11 +690,17 @@ namespace expresser {
                 return errorFactory(ErrorCode::ErrEOF);
             if (token->GetType() == RIGHTBRACE) {
                 // 右括号，函数结束
-                // 如果是void函数，添加ret
                 rollback();
                 return {};
             }
-            if (token->GetType() == RESERVED && token->GetStringValue() == "if") {
+            if (token->GetType() == LEFTBRACE) {
+                auto err = parseStatements(function);
+                if (err.has_value())
+                    return err.value();
+                token = nextToken();
+                if (!token.has_value() || token->GetType() != RIGHTBRACE)
+                    return errorFactory(ErrorCode::ErrMissingBrace);
+            } else if (token->GetType() == RESERVED && token->GetStringValue() == "if") {
                 rollback();
                 auto err = parseConditionStatement(function);
                 if (err.has_value())
@@ -747,7 +753,84 @@ namespace expresser {
         //     <expression>[<relational-operator><expression>]
         //<condition-statement> ::=
         //     'if' '(' <condition> ')' <statement> ['else' <statement>]
+        auto token = nextToken();
+        // (
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != LEFTBRACKET)
+            return errorFactory(ErrorCode::ErrMissingBracket);
+
+        // <condition>
+        auto cond = parseCondition(function);
+        if (cond.second.has_value())
+            return cond.second.value();
+        Operation operation = cond.first.value();
+        token = nextToken();
+
+        // )
+        if (!token.has_value() || token->GetType() != RIGHTBRACKET)
+            return errorFactory(ErrorCode::ErrMissingBracket);
+
+        // 预留位置，待<statement>解析完毕后修改
+        auto jmp_index = function._instructions.size();
+        function._instructions.emplace_back(jmp_index, Operation::NOP);
+
+        // <statement>
+        auto err = parseStatements(function);
+        if (err.has_value())
+            return err.value();
+        token = nextToken();
+
+        // 条件不符合时JMP目标的位置
+        auto nop_index = function._instructions.size();
+        function._instructions.emplace_back(nop_index, Operation::NOP);
+        // 修改原来的JMP
+        function._instructions[jmp_index] = Instruction(jmp_index, operation, 2, nop_index);
+
+        // 预读,else
+        auto seek = seekToken(1);
+        if (seek.has_value() && seek->GetType() == RESERVED && seek->GetStringValue() == "else") {
+            err = parseStatements(function);
+            if (err.has_value())
+                return err.value();
+        }
         return {};
+    }
+
+    std::pair<std::optional<Operation>, std::optional<ExpresserError>> Parser::parseCondition(Function &function) {
+        //<condition> ::=
+        //    <expression>[<relational-operator><expression>]
+        Operation operation;
+        // LHS
+        auto err = parseExpression(INTEGER, function);
+        if (err.has_value())
+            return std::make_pair(std::optional<Operation>(), err.value());
+
+        auto seek = seekToken(1);
+        if (seek.has_value() && seek->GetType() == RIGHTBRACKET) {
+            operation = Operation::JE;
+            // CODE
+            auto index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(index, Operation::IPUSH, 4, 0));
+            function._instructions.emplace_back(Instruction(index + 1, Operation::ICMP));
+            return std::make_pair(std::make_optional<Operation>(operation), std::optional<ExpresserError>());
+        } else {
+            // 关系符号
+            auto token = nextToken();
+            if (!token.has_value() || relation_token_set.find(token->GetType()) == relation_token_set.end())
+                return std::make_pair(std::optional<Operation>(), errorFactory(ErrorCode::ErrNeedRelationalOperator));
+            TokenType relation = token->GetType();
+            operation = relation_map.find(relation)->second;
+
+            // RHS
+            err = parseExpression(INTEGER, function);
+            if (err.has_value())
+                return std::make_pair(std::optional<Operation>(), err.value());
+
+            // CODE
+            auto index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(index, Operation::ICMP));
+            return std::make_pair(std::make_optional<Operation>(operation), std::optional<ExpresserError>());
+        }
     }
 
     std::optional<ExpresserError> Parser::parseLoopStatement(Function &function) {

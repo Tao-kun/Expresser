@@ -68,6 +68,15 @@ namespace expresser {
         CSCAN = 0xb2
     };
 
+    const static std::map<TokenType, Operation> relation_map{
+            {LESS,         JL},
+            {LESSEQUAL,    JLE},
+            {GREATER,      JG},
+            {GREATEREQUAL, JGE},
+            {EQUAL,        JE},
+            {NOTEQUAL,     JNE}
+    };
+
     struct InstructionParam {
         uint8_t _size;
         unsigned char _value[4];

@@ -118,8 +118,11 @@ namespace fmt {
                 case expresser::ErrNeedIdentifier:
                     name = "NeedIdentifier";
                     break;
+                case expresser::ErrNeedRelationalOperator:
+                    name = "NeedRelationalOperator";
+                    break;
                 case expresser::ErrNeedVariableType:
-                    name = "ErrNeedVariableType";
+                    name = "NeedVariableType";
                     break;
                 case expresser::ErrNoSemicolon:
                     name = "NoSemicolon";

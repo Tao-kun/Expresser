@@ -43,6 +43,7 @@ namespace expresser {
         ErrMissingBracket,
         ErrNeedAssignSymbol,
         ErrNeedIdentifier,
+        ErrNeedRelationalOperator,
         ErrNeedVariableType,
         ErrNoSemicolon,
         ErrNotInitialized,
