@@ -561,7 +561,6 @@ namespace expresser {
     }
 
     std::optional<ExpresserError> Parser::parseLocalVariableDeclarations(Function &function) {
-        // TODO:impl it
         //<variable-declaration> ::=
         //    [<const-qualifier>]<type-specifier><init-declarator-list>';'
         //<init-declarator-list> ::=
@@ -726,7 +725,7 @@ namespace expresser {
                 if (err.has_value())
                     return err.value();
             } else if (token->GetType() == IDENTIFIER) {
-                // TODO: function call or assign
+                // function call or assign
                 auto seek = seekToken(1);
                 std::optional<ExpresserError> err;
                 if (!seek.has_value() ||
@@ -834,6 +833,7 @@ namespace expresser {
     }
 
     std::optional<ExpresserError> Parser::parseLoopStatement(Function &function) {
+        // TODO: impl it
         //<loop-statement> ::=
         //    'while' '(' <condition> ')' <statement>
         //   |'do' <statement> 'while' '(' <condition> ')' ';'   --   拓展C0，`do...while`
@@ -868,6 +868,7 @@ namespace expresser {
     }
 
     std::optional<ExpresserError> Parser::parsePrintStatement(Function &function) {
+        // TODO: impl it
         //<print-statement> ::=
         //    'print' '(' [<printable-list>] ')' ';'
         //<printable-list>  ::=
@@ -878,6 +879,7 @@ namespace expresser {
     }
 
     std::optional<ExpresserError> Parser::parseScanStatement(Function &function) {
+        // TODO: impl it
         //<scan-statement> ::=
         //    'scan' '(' <identifier> ')' ';'
         return {};
@@ -930,7 +932,6 @@ namespace expresser {
         if (err.has_value())
             return err.value();
 
-        // TODO
         token = nextToken();
         if (!token.has_value() || token->GetType() != SEMICOLON)
             return errorFactory(ErrorCode::ErrNoSemicolon);
@@ -942,41 +943,180 @@ namespace expresser {
     }
 
     std::optional<ExpresserError> Parser::parseExpression(TokenType type, std::optional<Function> function) {
-        // TODO: impl it
         //<expression> ::=
         //    <additive-expression>
         //<additive-expression> ::=
         //     <multiplicative-expression>{<additive-operator><multiplicative-expression>}
+        auto err = parseMultiplicativeExpression(type, function);
+        if (err.has_value())
+            return err.value();
+
+        auto seek = seekToken(1);
+        if (seek.has_value() && (seek->GetType() == PLUS || seek->GetType() == MINUS)) {
+            Operation operation;
+            operation = seek->GetType() == PLUS ? Operation::IADD : Operation::ISUB;
+
+            err = parseMultiplicativeExpression(type, function);
+            if (err.has_value())
+                return err.value();
+            std::vector<Instruction> _instruction_vector;
+            if (function.has_value())
+                _instruction_vector = function->_instructions;
+            else
+                _instruction_vector = _start_instruments;
+            auto index = _instruction_vector.size();
+            _instruction_vector.emplace_back(Instruction(index, operation));
+
+        }
         return {};
     }
 
     std::optional<ExpresserError> Parser::parseMultiplicativeExpression(TokenType type, std::optional<Function> function) {
-        // TODO: impl it
         // 拓展C0，类型转换
         //<multiplicative-expression> ::=
         //     <cast-expression>{<multiplicative-operator><cast-expression>}
+        auto err = parseCastExpression(type, function);
+        if (err.has_value())
+            return err.value();
+
+        auto seek = seekToken(1);
+        if (seek.has_value() && (seek->GetType() == MULTIPLE || seek->GetType() == DIVIDE)) {
+            Operation operation;
+            operation = seek->GetType() == MULTIPLE ? Operation::IMUL : Operation::IDIV;
+
+            err = parseCastExpression(type, function);
+            if (err.has_value())
+                return err.value();
+
+            std::vector<Instruction> _instruction_vector;
+            if (function.has_value())
+                _instruction_vector = function->_instructions;
+            else
+                _instruction_vector = _start_instruments;
+            auto index = _instruction_vector.size();
+            _instruction_vector.emplace_back(Instruction(index, operation));
+        }
         return {};
     }
 
     std::optional<ExpresserError> Parser::parseUnaryExpression(TokenType type, std::optional<Function> function) {
-        // TODO: impl it
         //<unary-expression> ::=
         //    [<unary-operator>]<primary-expression>
+        bool reserve = false;
+        auto token = nextToken();
+        if (!token.has_value())
+            return errorFactory(ErrorCode::ErrIncompleteExpression);
+        if (token->GetType() == PLUS)
+            reserve = false;
+        else if (token->GetType() == MINUS)
+            reserve = true;
+        else
+            rollback();
+
+        auto err = parsePrimaryExpression(type, function);
+        if (err.has_value())
+            return err.value();
+
+        if (reserve) {
+            std::vector<Instruction> _instruction_vector;
+            if (function.has_value())
+                _instruction_vector = function->_instructions;
+            else
+                _instruction_vector = _start_instruments;
+            auto index = _instruction_vector.size();
+            _instruction_vector.emplace_back(Instruction(index, Operation::INEG));
+        }
         return {};
     }
 
     std::optional<ExpresserError> Parser::parsePrimaryExpression(TokenType type, std::optional<Function> function) {
-        // TODO: impl it
         //<primary-expression> ::=
         //     '('<expression>')'
         //    |<identifier>
         //    |<integer-literal>
         //    |<function-call>
         //    |<char-literal>   --   拓展C0，char
+        auto token = nextToken();
+        if (!token.has_value())
+            return errorFactory(ErrorCode::ErrIncompleteExpression);
+        switch (token->GetType()) {
+            case LEFTBRACKET: {
+                auto err = parseExpression(type, function);
+                if (err.has_value())
+                    return err.value();
+                break;
+            }
+            case CHARLITERAL:
+            case INTEGER: {
+                auto value = std::any_cast<int32_t>(token->GetValue());
+                std::vector<Instruction> _instruction_vector;
+                if (function.has_value())
+                    _instruction_vector = function->_instructions;
+                else
+                    _instruction_vector = _start_instruments;
+                auto index = _instruction_vector.size();
+                _instruction_vector.emplace_back(Instruction(index, IPUSH, 4, value));
+                break;
+            }
+            case IDENTIFIER: {
+                auto seek = seekToken(1);
+                if (!seek.has_value())
+                    return errorFactory(ErrorCode::ErrIncompleteExpression);
+                if (seek->GetType() == LEFTBRACKET) {
+                    // CALL
+                    rollback();
+                    auto err = parseFunctionCall(function);
+                    if (err.has_value())
+                        return err.value();
+                } else {
+                    // IDENTIFIER
+                    auto var_name = token->GetStringValue();
+                    int32_t var_index;
+                    if (function.has_value()) {
+                        int32_t level;
+                        auto index = function->_instructions.size();
+                        auto function_name = std::get<std::string>(_global_constants[function->_name_index]._value);
+                        if (isUnInitialized(function_name, var_name))
+                            return errorFactory(ErrorCode::ErrNotInitialized);
+                        if (isLocalVariable(function_name, var_name)) {
+                            auto res = getIndex(function_name, var_name);
+                            if (res.second.has_value())
+                                return res.second.value();
+                            var_index = res.first.value();
+                            level = 0;
+                        } else if (isGlobalVariable(var_name)) {
+                            auto res = getIndex(var_name);
+                            if (res.second.has_value())
+                                return res.second.value();
+                            var_index = res.first.value();
+                            level = 1;
+                        } else {
+                            return errorFactory(ErrorCode::ErrUndeclaredIdentifier);
+                        }
+                        function->_instructions.emplace_back(Instruction(index, LOADA, 2, level, 4, var_index));
+                        function->_instructions.emplace_back(Instruction(index + 1, ILOAD));
+                    } else {
+                        auto index = _start_instruments.size();
+                        if (isGlobalUnInitializedVariable(var_name))
+                            return errorFactory(ErrorCode::ErrNotInitialized);
+                        auto res = getIndex(var_name);
+                        if (res.second.has_value())
+                            return res.second.value();
+                        var_index = res.first.value();
+                        _start_instruments.emplace_back(Instruction(index, LOADA, 2, 0, 4, var_index));
+                        _start_instruments.emplace_back(Instruction(index + 1, ILOAD));
+                    }
+                }
+                break;
+            }
+            default:
+                return errorFactory(ErrorCode::ErrInvalidExpression);
+        }
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseFunctionCall(Function &function) {
+    std::optional<ExpresserError> Parser::parseFunctionCall(std::optional<Function> function) {
+        // TODO: impl it
         //<function-call> ::=
         //    <identifier> '(' [<expression-list>] ')'
         //<expression-list> ::=
@@ -984,10 +1124,30 @@ namespace expresser {
         return {};
     }
 
-    std::optional<ExpresserError> Parser::parseCastExpression(Function &function) {
+    std::optional<ExpresserError> Parser::parseCastExpression(TokenType type, std::optional<Function> function) {
         // 拓展C0，类型转换
         //<cast-expression> ::=
         //    {'('<type-specifier>')'}<unary-expression>
+        auto seek1 = seekToken(1), seek2 = seekToken(2), seek3 = seekToken(3);
+        if (seek1.has_value() && seek1->GetType() == LEFTBRACKET &&
+            seek2.has_value() && seek2->GetType() == RESERVED &&
+            seek3.has_value() && seek3->GetType() == RIGHTBRACKET) {
+            // CAST
+            auto cast_type = seek2->GetStringValue();
+            // int不用转，因为内部存储方式就是int
+            // char只在print时需要强转
+            // double不支持
+            if (cast_type == "void")
+                return errorFactory(ErrorCode::ErrCastToVoid);
+            // SKIP
+            auto token = nextToken();
+            token = nextToken();
+            token = nextToken();
+        }
+        // UNARY
+        auto err = parseUnaryExpression(type, std::move(function));
+        if (err.has_value())
+            return err.value();
         return {};
     }
 

@@ -142,7 +142,7 @@ namespace expresser {
         std::optional<ExpresserError> parseMultiplicativeExpression(TokenType type, std::optional<Function> function);
         std::optional<ExpresserError> parseUnaryExpression(TokenType type, std::optional<Function> function);
         std::optional<ExpresserError> parsePrimaryExpression(TokenType type, std::optional<Function> function);
-        std::optional<ExpresserError> parseFunctionCall(Function &function);
+        std::optional<ExpresserError> parseFunctionCall(std::optional<Function> function);
         std::optional<ExpresserError> parseParameterDeclarations(std::vector<FunctionParam> &params);
         std::optional<ExpresserError> parseFunctionDefinition();
         std::optional<ExpresserError> parseCompoundStatement(Function &function);
@@ -156,7 +156,7 @@ namespace expresser {
         std::optional<ExpresserError> parseScanStatement(Function &function);
         std::optional<ExpresserError> parseAssignmentExpression(Function &function);
         // 拓展C0
-        std::optional<ExpresserError> parseCastExpression(Function &function);
+        std::optional<ExpresserError> parseCastExpression(TokenType type, std::optional<Function> function);
 
         // 静态函数
         static bool isVariableType(const Token &token);

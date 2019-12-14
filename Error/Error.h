@@ -15,6 +15,7 @@ namespace expresser {
 
     enum ErrorCode : char {
         ErrAssignToConstant,
+        ErrCastToVoid,
         ErrConstantNeedValue,
         ErrDoubleOverflow,
         ErrDuplicateDeclaration,
@@ -25,6 +26,7 @@ namespace expresser {
         ErrInvalidCharacter,
         ErrInvalidCharacterAssignment,
         ErrInvalidDouble,
+        ErrInvalidExpression,
         ErrInvalidFunctionDeclaration,
         ErrInvalidFunctionReturnType,
         ErrInvalidIdentifier,

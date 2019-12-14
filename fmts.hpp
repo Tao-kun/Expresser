@@ -34,6 +34,9 @@ namespace fmt {
                 case expresser::ErrAssignToConstant:
                     name = "AssignToConstant";
                     break;
+                case expresser::ErrCastToVoid:
+                    name = "ErrCastToVoid";
+                    break;
                 case expresser::ErrConstantNeedValue:
                     name = "ConstantNeedValue";
                     break;
@@ -63,6 +66,9 @@ namespace fmt {
                     break;
                 case expresser::ErrInvalidDouble:
                     name = "InvalidDouble";
+                    break;
+                case expresser::ErrInvalidExpression:
+                    name = "InvalidExpression";
                     break;
                 case expresser::ErrInvalidFunctionDeclaration:
                     name = "InvalidFunctionDeclaration";
