@@ -485,6 +485,12 @@ namespace expresser {
         if (err.has_value())
             return err.value();
 
+        // 如果是void函数，添加ret
+        if (return_type == VOID) {
+            auto index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(index, Operation::RET));
+        }
+
         return {};
     }
 
@@ -709,7 +715,10 @@ namespace expresser {
                 auto err = parseLoopStatement(function);
                 if (err.has_value())
                     return err.value();
-            } else if (token->GetType() == RESERVED && token->GetStringValue() == "return") {
+            } else if (token->GetType() == RESERVED &&
+                       (token->GetStringValue() == "return" ||
+                        token->GetStringValue() == "continue" ||
+                        token->GetStringValue() == "break")) {
                 rollback();
                 auto err = parseJumpStatement(function);
                 if (err.has_value())
@@ -752,6 +761,19 @@ namespace expresser {
         //     <expression>[<relational-operator><expression>]
         //<condition-statement> ::=
         //     'if' '(' <condition> ')' <statement> ['else' <statement>]
+        // | ------------------ |
+        // |    condition-lhs   |
+        // |    condition-rhs   |
+        // |       compare      |
+        // |    jmp-1->nop-2    | -> 条件不符合时跳转
+        // | ------------------ |
+        // |     <if-block>     |
+        // | nop-1/jmp-2->nop-3 | -> 有else块时无条件跳转
+        // |        nop-2       |
+        // | ------------------ | -> 可能不存在
+        // |    <else-block>    |
+        // |        nop-3       |
+        // | ------------------ |
         auto token = nextToken();
         // (
         token = nextToken();
@@ -774,23 +796,34 @@ namespace expresser {
         function._instructions.emplace_back(jmp_index, Operation::NOP);
 
         // <statement>
+        // if块
         auto err = parseStatements(function);
         if (err.has_value())
             return err.value();
-        token = nextToken();
 
+        // if块添加两个nop
+        // 第一个nop用于有else时跳过else块
+        // 第二个nop用于条件不符合时跳入else块
         // 条件不符合时JMP目标的位置
         auto nop_index = function._instructions.size();
+        // NOP1
         function._instructions.emplace_back(nop_index, Operation::NOP);
+        // NOP2
+        function._instructions.emplace_back(nop_index + 1, Operation::NOP);
         // 修改原来的JMP
-        function._instructions[jmp_index] = Instruction(jmp_index, operation, 2, nop_index);
+        function._instructions[jmp_index] = Instruction(jmp_index, operation, 2, nop_index + 1);
 
-        // 预读,else
+        // 预读,else块
         auto seek = seekToken(1);
         if (seek.has_value() && seek->GetType() == RESERVED && seek->GetStringValue() == "else") {
             err = parseStatements(function);
             if (err.has_value())
                 return err.value();
+            auto index = function._instructions.size();
+            // 修改if块倒数第二个nop，防止执行到else块
+            // NOP3
+            function._instructions.emplace_back(Instruction(index, Operation::NOP));
+            function._instructions[nop_index] = Instruction(index + 1, Operation::JMP, 2, nop_index);
         }
         return {};
     }
@@ -806,6 +839,7 @@ namespace expresser {
 
         auto seek = seekToken(1);
         if (seek.has_value() && seek->GetType() == RIGHTBRACKET) {
+            // LHS==0 跳过if块
             operation = Operation::JE;
             // CODE
             auto index = function._instructions.size();
@@ -818,7 +852,7 @@ namespace expresser {
             if (!token.has_value() || relation_token_set.find(token->GetType()) == relation_token_set.end())
                 return std::make_pair(std::optional<Operation>(), errorFactory(ErrorCode::ErrNeedRelationalOperator));
             TokenType relation = token->GetType();
-            operation = relation_map.find(relation)->second;
+            operation = if_jmp_map.find(relation)->second;
 
             // RHS
             err = parseExpression(INTEGER, function);
@@ -833,55 +867,220 @@ namespace expresser {
     }
 
     std::optional<ExpresserError> Parser::parseLoopStatement(Function &function) {
-        // TODO: impl it
         //<loop-statement> ::=
         //    'while' '(' <condition> ')' <statement>
         //   |'do' <statement> 'while' '(' <condition> ')' ';'   --   拓展C0，`do...while`
+        // break和continue
+        auto token = nextToken();
+        if (token->GetStringValue() == "do") {
+            // do...while
+            // | --------------- |
+            // |       nop       |
+            // | statement-block |
+            // | --------------- |
+            // |       lhs       |
+            // |       rhs       |
+            // |       cmp       |
+            // |     jmp->nop    | -> 条件符合时跳转
+            // | --------------- |
+            auto nop_index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(nop_index, Operation::NOP));
+            auto err = parseStatements(function);
+            if (err.has_value())
+                return err.value();
+            token = nextToken();
+            if (!token.has_value() || token->GetStringValue() != "while")
+                return errorFactory(ErrorCode::ErrInvalidLoop);
+            token = nextToken();
+            if (!token.has_value() || token->GetType() != LEFTBRACKET)
+                return errorFactory(ErrorCode::ErrMissingBracket);
+            auto res = parseCondition(function);
+            if (res.second.has_value())
+                return res.second.value();
+            auto operation = res.first.value();
+            // 返回的是条件条件不符合时的跳转命令
+            // 再反转一次
+            operation = reverse_map.find(operation)->second;
+            auto index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(index, operation, 2, nop_index));
+        } else if (token->GetStringValue() == "while") {
+            // while
+            // | --------------- |
+            // |       nop-1     |
+            // |       lhs       |
+            // |       rhs       |
+            // |       cmp       |
+            // |  jmp-1->nop-3   | -> 条件不符合时跳转
+            // | --------------- |
+            // | statement-block |
+            // |  jmp-2->nop-1   | -> 无条件跳转
+            // | --------------- |
+            // |      nop-3      |
+            // | --------------- |
+            auto nop1_index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(nop1_index, Operation::NOP));
+            auto res = parseCondition(function);
+            if (res.second.has_value())
+                return res.second.value();
+            auto operation = res.first.value();
+            auto nop2_index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(nop2_index, Operation::NOP));
+            auto err = parseStatements(function);
+            if (err.has_value())
+                return err.value();
+            auto index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(index, Operation::JMP, 2, nop1_index));
+            function._instructions.emplace_back(Instruction(index + 1, Operation::NOP));
+            auto nop3_index = function._instructions.size();
+            // 修改跳转地址
+            function._instructions[nop2_index] = Instruction(nop2_index, operation, 2, nop3_index);
+        }
         return {};
     }
 
     std::optional<ExpresserError> Parser::parseJumpStatement(Function &function) {
         //<jump-statement> ::=
-        //    <return-statement>
+        //     'break' ';'
+        //    |'continue' ';'
+        //    |<return-statement>
         //<return-statement> ::=
         //    'return' [<expression>] ';'
         // 先跳过'return'
-        auto return_type = function._return_type;
         auto token = nextToken();
-        token = nextToken();
-        if (!token.has_value())
-            return errorFactory(ErrorCode::ErrEOF);
-        if (return_type == VOID) {
-            if (token->GetType() != SEMICOLON)
-                return errorFactory(ErrorCode::ErrReturnInVoidFunction);
+        if (token->GetStringValue() == "return") {
+            auto return_type = function._return_type;
+            token = nextToken();
+            if (!token.has_value())
+                return errorFactory(ErrorCode::ErrEOF);
+            if (return_type == VOID) {
+                if (token->GetType() != SEMICOLON)
+                    return errorFactory(ErrorCode::ErrReturnInVoidFunction);
+                auto index = function._instructions.size();
+                function._instructions.emplace_back(Instruction(index, Operation::RET));
+            }
+            rollback();
+            auto err = parseExpression(return_type, function);
+            if (err.has_value())
+                return err.value();
             auto index = function._instructions.size();
-            function._instructions.emplace_back(Instruction(index, Operation::RET));
+            function._instructions.emplace_back(Instruction(index, Operation::IRET));
+        } else if (token->GetStringValue() == "break") {
+            // TODO: impl it
+        } else if (token->GetStringValue() == "continue") {
+            // TODO: impl it
+        } else {
+            return errorFactory(ErrorCode::ErrInvalidStatement);
         }
-
-        rollback();
-        auto err = parseExpression(return_type, function);
-        if (err.has_value())
-            return err.value();
-        auto index = function._instructions.size();
-        function._instructions.emplace_back(Instruction(index, Operation::IRET));
         return {};
     }
 
     std::optional<ExpresserError> Parser::parsePrintStatement(Function &function) {
-        // TODO: impl it
         //<print-statement> ::=
         //    'print' '(' [<printable-list>] ')' ';'
+        // 'print'
+        auto token = nextToken();
+        // '('
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != LEFTBRACKET)
+            return errorFactory(ErrorCode::ErrMissingBracket);
+        // [<printable-list>]
+        auto err = parsePrintableList(function);
+        if (err.has_value())
+            return err.value();
+        // ')'
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != RIGHTBRACKET)
+            return errorFactory(ErrorCode::ErrMissingBracket);
+        // ';'
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != SEMICOLON)
+            return errorFactory(ErrorCode::ErrNoSemicolon);
+        return {};
+    }
+
+    std::optional<ExpresserError> Parser::parsePrintableList(Function &function) {
         //<printable-list>  ::=
         //    <printable> {',' <printable>}
         //<printable> ::=
         //    <expression> | <string-literal> | <char-literal>   --   拓展C0，字面量打印
+        std::optional<Token> token;
+        for (;;) {
+            token = nextToken();
+            if (!token.has_value())
+                return errorFactory(ErrorCode::ErrInvalidPrint);
+            if (token->GetType() == RIGHTBRACKET) {
+                rollback();
+                break;
+            } else if (token->GetType() == COLON)
+                continue;
+            else if (token->GetType() == CHARLITERAL) {
+                auto index = function._instructions.size();
+                function._instructions.emplace_back(Instruction(index, Operation::IPUSH, 4, std::any_cast<int32_t>(token->GetValue())));
+                function._instructions.emplace_back(Instruction(index + 1, Operation::CPRINT));
+            } else if (token->GetType() == STRINGLITERAL) {
+                auto const_index = _global_constants.size();
+                _global_constants.emplace_back(Constant(const_index, 'S', token->GetStringValue()));
+                auto index = function._instructions.size();
+                function._instructions.emplace_back(Instruction(index, Operation::LOADC, 2, const_index));
+                function._instructions.emplace_back(Instruction(index + 1, Operation::SPRINT));
+            } else {
+                // TODO: cast
+                auto err = parseExpression(INTEGER, function);
+                if (err.has_value())
+                    return err.value();
+            }
+        }
         return {};
     }
 
     std::optional<ExpresserError> Parser::parseScanStatement(Function &function) {
-        // TODO: impl it
         //<scan-statement> ::=
         //    'scan' '(' <identifier> ')' ';'
+        int32_t index, var_index, level;
+        TokenType type;
+        auto token = nextToken();
+        // '('
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != LEFTBRACKET)
+            return errorFactory(ErrorCode::ErrMissingBracket);
+        // <identifier>
+        token = nextToken();
+        auto function_name = std::get<std::string>(_global_constants[function._name_index]._value);
+        if (!token.has_value())
+            return errorFactory(ErrorCode::ErrInvalidScan);
+        auto identifier = token->GetStringValue();
+        if (isConstant(function_name, identifier))
+            return errorFactory(ErrorCode::ErrAssignToConstant);
+        if (isLocalVariable(function_name, identifier)) {
+            var_index = getIndex(function_name, identifier).first.value();
+            index = function._instructions.size();
+            level = 0;
+            type = getVariableType(function_name, identifier).value();
+        } else if (isGlobalVariable(identifier)) {
+            var_index = getIndex(identifier).first.value();
+            index = function._instructions.size();
+            level = 1;
+            type = getVariableType(identifier).value();
+        } else {
+            return errorFactory(ErrorCode::ErrUndeclaredIdentifier);
+        }
+        function._instructions.emplace_back(Instruction(index, Operation::LOADA, 2, level, 4, var_index));
+        // ')'
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != RIGHTBRACKET)
+            return errorFactory(ErrorCode::ErrMissingBracket);
+        // ';'
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != SEMICOLON)
+            return errorFactory(ErrorCode::ErrNoSemicolon);
+
+        if (type == CHARLITERAL)
+            function._instructions.emplace_back(Instruction(index + 1, Operation::CSCAN));
+        else if (type == INTEGER)
+            function._instructions.emplace_back(Instruction(index + 1, Operation::ISCAN));
+        else
+            return errorFactory(ErrorCode::ErrInvalidVariableType);
+        function._instructions.emplace_back(Instruction(index + 2, Operation::ISTORE));
         return {};
     }
 

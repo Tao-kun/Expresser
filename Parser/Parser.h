@@ -153,6 +153,7 @@ namespace expresser {
         std::optional<ExpresserError> parseLoopStatement(Function &function);
         std::optional<ExpresserError> parseJumpStatement(Function &function);
         std::optional<ExpresserError> parsePrintStatement(Function &function);
+        std::optional<ExpresserError> parsePrintableList(Function &function);
         std::optional<ExpresserError> parseScanStatement(Function &function);
         std::optional<ExpresserError> parseAssignmentExpression(Function &function);
         // 拓展C0

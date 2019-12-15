@@ -68,18 +68,27 @@ namespace expresser {
         CSCAN = 0xb2
     };
 
-    const static std::map<TokenType, Operation> relation_map{
-            {LESS,         JL},
-            {LESSEQUAL,    JLE},
-            {GREATER,      JG},
-            {GREATEREQUAL, JGE},
-            {EQUAL,        JE},
-            {NOTEQUAL,     JNE}
+    // 取反，跳转到else块
+    const static std::map<TokenType, Operation> if_jmp_map{
+            {LESS,         JGE},
+            {LESSEQUAL,    JG},
+            {GREATER,      JLE},
+            {GREATEREQUAL, JL},
+            {EQUAL,        JNE},
+            {NOTEQUAL,     JE}
+    };
+    const static std::map<Operation, Operation> reverse_map{
+            {JL,  JGE},
+            {JLE, JG},
+            {JG,  JLE},
+            {JGE, JL},
+            {JE,  JNE},
+            {JNE, JE},
     };
 
     struct InstructionParam {
-        uint8_t _size;
-        unsigned char _value[4];
+        uint8_t _size{};
+        unsigned char _value[4] = {0};
     };
 
     class Instruction {
