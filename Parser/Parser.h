@@ -140,11 +140,11 @@ namespace expresser {
         std::optional<ExpresserError> parseProgram();
         std::optional<ExpresserError> parseGlobalDeclarations();
         std::optional<ExpresserError> parseFunctionDefinitions();
-        std::optional<ExpresserError> parseExpression(TokenType type, std::optional<Function> function);
-        std::optional<ExpresserError> parseMultiplicativeExpression(TokenType type, std::optional<Function> function);
-        std::optional<ExpresserError> parseUnaryExpression(TokenType type, std::optional<Function> function);
-        std::optional<ExpresserError> parsePrimaryExpression(TokenType type, std::optional<Function> function);
-        std::optional<ExpresserError> parseFunctionCall(std::optional<Function> function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>>  parseExpression(std::optional<Function> function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseMultiplicativeExpression( std::optional<Function> function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>>parseUnaryExpression( std::optional<Function> function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parsePrimaryExpression( std::optional<Function> function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseFunctionCall(std::optional<Function> function);
         std::optional<ExpresserError> parseParameterDeclarations(std::vector<FunctionParam> &params);
         std::optional<ExpresserError> parseFunctionDefinition();
         std::optional<ExpresserError> parseCompoundStatement(Function &function);
@@ -159,7 +159,7 @@ namespace expresser {
         std::optional<ExpresserError> parseScanStatement(Function &function);
         std::optional<ExpresserError> parseAssignmentExpression(Function &function);
         // 拓展C0
-        std::optional<ExpresserError> parseCastExpression(TokenType type, std::optional<Function> function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseCastExpression( std::optional<Function> function);
 
         // 静态函数
         static bool isVariableType(const Token &token);
