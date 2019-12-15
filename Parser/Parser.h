@@ -64,6 +64,8 @@ namespace expresser {
         // 局部变量表（未初始化）
         std::map<std::string, Variable> _local_uninitialized;
         std::vector<Instruction> _instructions;
+        // break和continue表
+        std::vector<std::pair<int32_t, std::string>> _loop_jumps;
 
         // 构造函数
         Function() = default;

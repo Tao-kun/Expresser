@@ -871,17 +871,24 @@ namespace expresser {
         //    'while' '(' <condition> ')' <statement>
         //   |'do' <statement> 'while' '(' <condition> ')' ';'   --   拓展C0，`do...while`
         // break和continue
+        int32_t continue_index, break_index;
+        // 循环嵌套，保存上一个循环的跳转信息
+        std::vector<std::pair<int32_t, std::string>> prev_loop;
+        prev_loop.assign(function._loop_jumps.begin(), function._loop_jumps.end());
+        // 清空之前的跳转信息
+        function._loop_jumps.clear();
         auto token = nextToken();
         if (token->GetStringValue() == "do") {
             // do...while
             // | --------------- |
-            // |       nop       |
+            // |      nop-1      | -> 用于正常循环和continue
             // | statement-block |
             // | --------------- |
             // |       lhs       |
             // |       rhs       |
             // |       cmp       |
-            // |     jmp->nop    | -> 条件符合时跳转
+            // |    jmp->nop-1   | -> 条件符合时跳转
+            // |      nop-2      | -> 用于break跳出
             // | --------------- |
             auto nop_index = function._instructions.size();
             function._instructions.emplace_back(Instruction(nop_index, Operation::NOP));
@@ -909,10 +916,13 @@ namespace expresser {
             operation = reverse_map.find(operation)->second;
             auto index = function._instructions.size();
             function._instructions.emplace_back(Instruction(index, operation, 2, nop_index));
+            function._instructions.emplace_back(Instruction(index + 1, Operation::NOP));
+            continue_index = nop_index;
+            break_index = index + 1;
         } else if (token->GetStringValue() == "while") {
             // while
             // | --------------- |
-            // |       nop-1     |
+            // |       nop-1     | -> 用于正常循环和continue
             // |       lhs       |
             // |       rhs       |
             // |       cmp       |
@@ -921,7 +931,7 @@ namespace expresser {
             // | statement-block |
             // |  jmp-2->nop-1   | -> 无条件跳转
             // | --------------- |
-            // |      nop-3      |
+            // |      nop-3      | -> 用于跳出和break
             // | --------------- |
             token = nextToken();
             if (!token.has_value() || token->GetType() != LEFTBRACKET);
@@ -944,7 +954,24 @@ namespace expresser {
             auto nop3_index = function._instructions.size();
             // 修改跳转地址
             function._instructions[nop2_index] = Instruction(nop2_index, operation, 2, nop3_index);
+            continue_index = nop1_index;
+            break_index = nop3_index;
+        } else {
+            return errorFactory(ErrorCode::ErrInvalidLoop);
         }
+        // 处理内部break和continue
+        for (const auto &jump:function._loop_jumps) {
+            if (jump.second == "break")
+                function._instructions[jump.first] = Instruction(jump.first, Operation::JMP, 2, break_index);
+            else if (jump.second == "continue")
+                function._instructions[jump.first] = Instruction(jump.first, Operation::JMP, 2, continue_index);
+            else
+                return errorFactory(ErrorCode::ErrInvalidJump);
+        }
+        // 清空跳转信息
+        function._loop_jumps.clear();
+        // 恢复上一个循环的跳转信息
+        function._loop_jumps.assign(prev_loop.begin(), prev_loop.end());
         return {};
     }
 
@@ -974,10 +1001,10 @@ namespace expresser {
                 return err.value();
             auto index = function._instructions.size();
             function._instructions.emplace_back(Instruction(index, Operation::IRET));
-        } else if (token->GetStringValue() == "break") {
-            // TODO: impl it
-        } else if (token->GetStringValue() == "continue") {
-            // TODO: impl it
+        } else if (token->GetStringValue() == "break" || token->GetStringValue() == "continue") {
+            auto index = function._instructions.size();
+            function._instructions.emplace_back(Instruction(index, Operation::NOP));
+            function._loop_jumps.emplace_back(std::make_pair(index, token->GetStringValue()));
         } else {
             return errorFactory(ErrorCode::ErrInvalidStatement);
         }

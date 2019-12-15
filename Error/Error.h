@@ -32,6 +32,7 @@ namespace expresser {
         ErrInvalidIdentifier,
         ErrInvalidInput,
         ErrInvalidInteger,
+        ErrInvalidJump,
         ErrInvalidLoop,
         ErrInvalidNotEqual,
         ErrInvalidParameter,

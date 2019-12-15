@@ -85,6 +85,9 @@ namespace fmt {
                 case expresser::ErrInvalidInteger:
                     name = "InvalidInteger";
                     break;
+                case expresser::ErrInvalidJump:
+                    name = "InvalidJump";
+                    break;
                 case expresser::ErrInvalidLoop:
                     name = "InvalidLoop";
                     break;
