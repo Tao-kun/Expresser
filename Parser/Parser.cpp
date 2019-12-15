@@ -801,7 +801,7 @@ namespace expresser {
         if (err.has_value())
             return err.value();
 
-        // if块添加两个nop
+        // if块末尾添加两个nop
         // 第一个nop用于有else时跳过else块
         // 第二个nop用于条件不符合时跳入else块
         // 条件不符合时JMP目标的位置
@@ -820,7 +820,7 @@ namespace expresser {
             if (err.has_value())
                 return err.value();
             auto index = function._instructions.size();
-            // 修改if块倒数第二个nop，防止执行到else块
+            // 修改if块末尾第一个nop，防止执行到else块
             // NOP3
             function._instructions.emplace_back(Instruction(index, Operation::NOP));
             function._instructions[nop_index] = Instruction(index + 1, Operation::JMP, 2, nop_index);
@@ -898,6 +898,12 @@ namespace expresser {
             if (res.second.has_value())
                 return res.second.value();
             auto operation = res.first.value();
+            token = nextToken();
+            if (!token.has_value() || token->GetType() != RIGHTBRACKET)
+                return errorFactory(ErrorCode::ErrMissingBracket);
+            token = nextToken();
+            if (!token.has_value() || token->GetType() != SEMICOLON)
+                return errorFactory(ErrorCode::ErrNoSemicolon);
             // 返回的是条件条件不符合时的跳转命令
             // 再反转一次
             operation = reverse_map.find(operation)->second;
@@ -917,12 +923,16 @@ namespace expresser {
             // | --------------- |
             // |      nop-3      |
             // | --------------- |
+            token = nextToken();
+            if (!token.has_value() || token->GetType() != LEFTBRACKET);
             auto nop1_index = function._instructions.size();
             function._instructions.emplace_back(Instruction(nop1_index, Operation::NOP));
             auto res = parseCondition(function);
             if (res.second.has_value())
                 return res.second.value();
             auto operation = res.first.value();
+            token = nextToken();
+            if (!token.has_value() || token->GetType() != RIGHTBRACKET);
             auto nop2_index = function._instructions.size();
             function._instructions.emplace_back(Instruction(nop2_index, Operation::NOP));
             auto err = parseStatements(function);
@@ -1011,7 +1021,7 @@ namespace expresser {
             if (token->GetType() == RIGHTBRACKET) {
                 rollback();
                 break;
-            } else if (token->GetType() == COLON)
+            } else if (token->GetType() == COMMA)
                 continue;
             else if (token->GetType() == CHARLITERAL) {
                 auto index = function._instructions.size();
@@ -1024,10 +1034,11 @@ namespace expresser {
                 function._instructions.emplace_back(Instruction(index, Operation::LOADC, 2, const_index));
                 function._instructions.emplace_back(Instruction(index + 1, Operation::SPRINT));
             } else {
-                // TODO: cast
+                // TODO: 根据运算的隐式转换
                 auto err = parseExpression(INTEGER, function);
                 if (err.has_value())
                     return err.value();
+                // TODO: iprint/cprint
             }
         }
         return {};
