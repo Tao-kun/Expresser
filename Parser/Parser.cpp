@@ -137,8 +137,8 @@ namespace expresser {
     }
 
     std::optional<ExpresserError>
-    Parser::addLocalVariable(const std::string &function_name, const std::string &variable_name,
-                             TokenType type, std::optional<std::any> value) {
+    Parser::addLocalVariable(const std::string &function_name, TokenType type,
+                             const std::string &variable_name, std::optional<std::any> value) {
         auto err = getFunction(function_name);
         if (err.second.has_value())
             return err.second.value();
@@ -636,7 +636,7 @@ namespace expresser {
                 auto identifier = token->GetStringValue();
                 if (isLocalVariable(function_name, identifier))
                     return errorFactory(ErrorCode::ErrDuplicateDeclaration);
-                addLocalConstant(function_name, var_type, identifier, {});
+                addLocalVariable(function_name, var_type, identifier, {});
 
                 token = nextToken();
                 if (!token.has_value())
@@ -774,9 +774,10 @@ namespace expresser {
         // |    <else-block>    |
         // |        nop-3       |
         // | ------------------ |
-        auto token = nextToken();
+        // 跳过'if'
+        nextToken();
         // (
-        token = nextToken();
+        auto token = nextToken();
         if (!token.has_value() || token->GetType() != LEFTBRACKET)
             return errorFactory(ErrorCode::ErrMissingBracket);
 
@@ -934,7 +935,8 @@ namespace expresser {
             // |      nop-3      | -> 用于跳出和break
             // | --------------- |
             token = nextToken();
-            if (!token.has_value() || token->GetType() != LEFTBRACKET);
+            if (!token.has_value() || token->GetType() != LEFTBRACKET)
+                return errorFactory(ErrorCode::ErrMissingBracket);
             auto nop1_index = function._instructions.size();
             function._instructions.emplace_back(Instruction(nop1_index, Operation::NOP));
             auto res = parseCondition(function);
@@ -942,7 +944,8 @@ namespace expresser {
                 return res.second.value();
             auto operation = res.first.value();
             token = nextToken();
-            if (!token.has_value() || token->GetType() != RIGHTBRACKET);
+            if (!token.has_value() || token->GetType() != RIGHTBRACKET)
+                return errorFactory(ErrorCode::ErrMissingBracket);
             auto nop2_index = function._instructions.size();
             function._instructions.emplace_back(Instruction(nop2_index, Operation::NOP));
             auto err = parseStatements(function);
@@ -1014,10 +1017,10 @@ namespace expresser {
     std::optional<ExpresserError> Parser::parsePrintStatement(Function &function) {
         //<print-statement> ::=
         //    'print' '(' [<printable-list>] ')' ';'
-        // 'print'
-        auto token = nextToken();
+        // 跳过'print'
+        nextToken();
         // '('
-        token = nextToken();
+        auto token = nextToken();
         if (!token.has_value() || token->GetType() != LEFTBRACKET)
             return errorFactory(ErrorCode::ErrMissingBracket);
         // [<printable-list>]
@@ -1076,9 +1079,10 @@ namespace expresser {
         //    'scan' '(' <identifier> ')' ';'
         int32_t index, var_index, level;
         TokenType type;
-        auto token = nextToken();
+        // 跳过'scan'
+        nextToken();
         // '('
-        token = nextToken();
+        auto token = nextToken();
         if (!token.has_value() || token->GetType() != LEFTBRACKET)
             return errorFactory(ErrorCode::ErrMissingBracket);
         // <identifier>
@@ -1353,11 +1357,37 @@ namespace expresser {
     }
 
     std::optional<ExpresserError> Parser::parseFunctionCall(std::optional<Function> function) {
-        // TODO: impl it
         //<function-call> ::=
         //    <identifier> '(' [<expression-list>] ')'
         //<expression-list> ::=
         //    <expression>{','<expression>}
+        // 无法在全局区调用函数
+        if (!function.has_value())
+            return errorFactory(ErrorCode::ErrInvalidFunctionCall);
+        auto token = nextToken();
+        if (!token.has_value() || token->GetType() != IDENTIFIER)
+            return errorFactory(ErrorCode::ErrInvalidFunctionCall);
+        auto function_name = token->GetStringValue();
+        token = nextToken();
+        if (!token.has_value() || token->GetType() != LEFTBRACKET)
+            return errorFactory(ErrorCode::ErrMissingBracket);
+        for (;;) {
+            token = nextToken();
+            if (!token.has_value())
+                return errorFactory(ErrorCode::ErrInvalidFunctionCall);
+            if (token->GetType() == COMMA)
+                continue;
+            else if (token->GetType() == RIGHTBRACKET)
+                break;
+            else {
+                auto err = parseExpression(INTEGER, function);
+                if (err.has_value())
+                    return err.value();
+            }
+        }
+        auto index = function->_instructions.size();
+        auto func_index = _functions[function_name]._index;
+        function->_instructions.emplace_back(Instruction(index, Operation::CALL, 2, func_index));
         return {};
     }
 
@@ -1377,9 +1407,9 @@ namespace expresser {
             if (cast_type == "void")
                 return errorFactory(ErrorCode::ErrCastToVoid);
             // SKIP
-            auto token = nextToken();
-            token = nextToken();
-            token = nextToken();
+            nextToken();
+            nextToken();
+            nextToken();
         }
         // UNARY
         auto err = parseUnaryExpression(type, std::move(function));

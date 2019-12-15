@@ -70,6 +70,9 @@ namespace fmt {
                 case expresser::ErrInvalidExpression:
                     name = "InvalidExpression";
                     break;
+                case expresser::ErrInvalidFunctionCall:
+                    name = "InvalidFunctionCall";
+                    break;
                 case expresser::ErrInvalidFunctionDeclaration:
                     name = "InvalidFunctionDeclaration";
                     break;

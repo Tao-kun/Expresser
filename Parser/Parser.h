@@ -115,7 +115,7 @@ namespace expresser {
         std::optional<ExpresserError>
         addLocalConstant(const std::string &function_name, TokenType type, const std::string &constant_name, std::any value);
         std::optional<ExpresserError>
-        addLocalVariable(const std::string &function_name, const std::string &variable_name, TokenType type, std::optional<std::any> value);
+        addLocalVariable(const std::string &function_name, TokenType type, const std::string &variable_name, std::optional<std::any> value);
         std::pair<std::optional<int32_t>, std::optional<ExpresserError>> getIndex(const std::string &variable_name);
         std::pair<std::optional<int32_t>, std::optional<ExpresserError>>
         getIndex(const std::string &function_name, const std::string &variable_name);

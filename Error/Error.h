@@ -27,6 +27,7 @@ namespace expresser {
         ErrInvalidCharacterAssignment,
         ErrInvalidDouble,
         ErrInvalidExpression,
+        ErrInvalidFunctionCall,
         ErrInvalidFunctionDeclaration,
         ErrInvalidFunctionReturnType,
         ErrInvalidIdentifier,
