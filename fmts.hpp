@@ -289,10 +289,12 @@ namespace fmt {
                 int32_t value;
                 if (params.first._size == 0)
                     break;
+                value = 0;
                 ::memcpy(&value, params.first._value, params.first._size);
                 string_param += std::to_string(value);
                 if (params.second._size == 0)
                     break;
+                value = 0;
                 ::memcpy(&value, params.second._value, params.second._size);
                 string_param += " " + std::to_string(value);
                 break;

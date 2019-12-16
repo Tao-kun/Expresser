@@ -28,6 +28,8 @@ namespace expresser {
         Constant() = default;
         template<typename T>
         Constant(int32_t index, char type, T value);
+
+        Constant(const Constant &c) : _index(c._index), _type(c._index), _value(c._value) {};
         std::string ToCode();
     };
 
@@ -38,6 +40,8 @@ namespace expresser {
         Variable() = default;
 
         Variable(int32_t index, TokenType type) : _index(index), _type(type) {}
+
+        Variable(const Variable &v) : _index(v._index), _type(v._type) {}
     };
 
     struct FunctionParam {
@@ -47,6 +51,9 @@ namespace expresser {
 
         FunctionParam(TokenType type, std::string value, bool is_const) :
                 _type(type), _value(std::move(value)), _is_const(is_const) {}
+
+        FunctionParam(const FunctionParam &fp) :
+                _type(fp._type), _value(fp._value), _is_const(fp._is_const) {}
     };
 
     struct Function {
