@@ -19,6 +19,23 @@ std::vector<expresser::Token> _allToken(std::istream &_input) {
     return res.first;
 }
 
+void write_to_file(const expresser::Parser &_parser, std::ostream &_output) {
+    _output << ".constants\n";
+    for (auto constant:_parser._global_constants) {
+        _output << fmt::format("{}\n", constant.ToCode());
+    }
+    _output << ".starts:\n";
+    for (expresser::Instruction instrument:_parser._start_instruments) {
+        _output << fmt::format("{}\n", instrument);
+    }
+    auto functions = _parser._functions;
+    _output << ".functions:\n";
+    for (const auto &function:functions) {
+        _output << fmt::format("{} {} {} {}\n", function.second._index, function.second._name_index,
+                               function.second._params_size, function.second._level);
+    }
+}
+
 void lexer(std::istream &_input, std::ostream &_output) {
     auto t = _allToken(_input);
     for (const auto &token:t) {
@@ -34,7 +51,7 @@ void assembly(std::istream &_input, std::ostream &_output) {
         fmt::print(stderr, "Parser error: {}\n", err.value());
         exit(2);
     }
-    parser.WriteToFile(_output);
+    write_to_file(parser, _output);
 }
 
 void binary(std::istream &_input, std::ostream &_output) {

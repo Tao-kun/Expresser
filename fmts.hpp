@@ -59,7 +59,7 @@ namespace fmt {
                     name = "InvalidAssignment";
                     break;
                 case expresser::ErrInvalidCast:
-                    name="InvalidCast";
+                    name = "InvalidCast";
                     break;
                 case expresser::ErrInvalidCharacter:
                     name = "InvalidCharacter";
@@ -282,31 +282,22 @@ namespace fmt {
         constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
 
         template<typename FormatContext>
-        auto format(expresser::Instruction &inst, FormatContext &ctx) {
-            return format_to(ctx.out(), "{} {} {}\n", inst.GetIndex(), inst.GetOperation(), inst.GetParam());
-        }
-    };
-
-    template<>
-    struct formatter<expresser::InstructionParam> {
-        template<typename ParseContext>
-        constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
-
-        template<typename FormatContext>
-        auto format(expresser::InstructionParam *param, FormatContext &ctx) {
-            std::string name;
-            int32_t value;
-            if (param[0]._size == 0)
-                return name;
-
-            ::memcpy(&value, param[0]._value, param[0]._size);
-            name += std::to_string(value);
-            if (param[1]._size == 0)
-                return name;
-
-            ::memcpy(&value, param[1]._value, param[1]._size);
-            name += " " + std::to_string(value);
-            return name;
+        auto format(expresser::Instruction inst, FormatContext &ctx) {
+            auto params = inst.GetParams();
+            std::string string_param;
+            for (;;) {
+                int32_t value;
+                if (params.first._size == 0)
+                    break;
+                ::memcpy(&value, params.first._value, params.first._size);
+                string_param += std::to_string(value);
+                if (params.second._size == 0)
+                    break;
+                ::memcpy(&value, params.second._value, params.second._size);
+                string_param += " " + std::to_string(value);
+                break;
+            }
+            return format_to(ctx.out(), "{} {} {}", std::to_string(inst.GetIndex()), inst.GetOperation(), string_param);
         }
     };
 
@@ -497,6 +488,7 @@ namespace fmt {
                     name = "cscan";
                     break;
             }
+            return format_to(ctx.out(), name);
         }
     };
 }

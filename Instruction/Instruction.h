@@ -2,6 +2,7 @@
 #define EXPRESSER_INSTRUCTION_H
 
 #include <cstring>
+#include <utility>
 
 #include "Types.h"
 
@@ -94,8 +95,8 @@ namespace expresser {
     class Instruction {
     private:
         uint32_t _index{};
-        Operation _opcode;
-        struct InstructionParam _params[2]{};
+        Operation _opcode{};
+        std::pair<InstructionParam, InstructionParam> _params;
 
     public:
         Instruction() = default;
@@ -103,25 +104,25 @@ namespace expresser {
         Instruction(uint32_t index, Operation _op) {
             _index = index;
             _opcode = _op;
-            _params[0]._size = 0;
-            _params[1]._size = 0;
+            _params.first._size = 0;
+            _params.second._size = 0;
         }
 
         Instruction(uint32_t index, Operation _op, uint8_t _size1, int32_t param1) {
             _index = index;
             _opcode = _op;
-            _params[0]._size = _size1;
-            ::memcpy(_params[0]._value, &param1, _size1);
-            _params[1]._size = 0;
+            _params.first._size = _size1;
+            ::memcpy(_params.first._value, &param1, _size1);
+            _params.second._size = 0;
         }
 
         Instruction(uint32_t index, Operation _op, uint8_t _size1, int32_t param1, uint8_t _size2, int32_t param2) {
             _index = index;
             _opcode = _op;
-            _params[0]._size = _size1;
-            ::memcpy(_params[0]._value, &param1, _size1);
-            _params[1]._size = _size2;
-            ::memcpy(_params[1]._value, &param2, _size2);
+            _params.first._size = _size1;
+            ::memcpy(_params.first._value, &param1, _size1);
+            _params.first._size = _size2;
+            ::memcpy(_params.second._value, &param1, _size2);
         }
 
         void SetIndex(uint32_t index) {
@@ -136,7 +137,7 @@ namespace expresser {
             return _opcode;
         }
 
-        InstructionParam *GetParam() {
+        std::pair<InstructionParam, InstructionParam> GetParams() {
             return _params;
         }
     };
