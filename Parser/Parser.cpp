@@ -798,7 +798,7 @@ namespace expresser {
             // 修改if块末尾第一个nop，防止执行到else块
             // NOP3
             function._instructions.emplace_back(Instruction(index, Operation::NOP));
-            function._instructions[nop_index] = Instruction(index + 1, Operation::JMP, 2, nop_index);
+            function._instructions[nop_index] = Instruction(nop_index, Operation::JMP, 2, index);
         }
         return {};
     }
@@ -928,7 +928,7 @@ namespace expresser {
             auto index = function._instructions.size();
             function._instructions.emplace_back(Instruction(index, Operation::JMP, 2, nop1_index));
             function._instructions.emplace_back(Instruction(index + 1, Operation::NOP));
-            auto nop3_index = function._instructions.size();
+            auto nop3_index = index + 1;
             // 修改跳转地址
             function._instructions[nop2_index] = Instruction(nop2_index, operation, 2, nop3_index);
             continue_index = nop1_index;
@@ -1208,26 +1208,30 @@ namespace expresser {
             return std::make_pair(std::optional<TokenType>(), res.second.value());
         lhs_type = res.first.value();
 
-        auto seek = seekToken(1);
-        if (seek.has_value() && (seek->GetType() == PLUS || seek->GetType() == MINUS)) {
-            // 跳过
-            nextToken();
-            Operation operation;
-            operation = seek->GetType() == PLUS ? Operation::IADD : Operation::ISUB;
+        for (;;) {
+            auto seek = seekToken(1);
+            if (seek.has_value() && (seek->GetType() == PLUS || seek->GetType() == MINUS)) {
+                // 跳过
+                nextToken();
+                Operation operation;
+                operation = seek->GetType() == PLUS ? Operation::IADD : Operation::ISUB;
 
-            res = parseMultiplicativeExpression(function);
-            if (res.second.has_value())
-                return std::make_pair(std::optional<TokenType>(), res.second.value());
-            rhs_type = res.first.value();
-            has_rhs = true;
+                res = parseMultiplicativeExpression(function);
+                if (res.second.has_value())
+                    return std::make_pair(std::optional<TokenType>(), res.second.value());
+                rhs_type = res.first.value();
+                has_rhs = true;
 
-            std::vector<Instruction> *_instruction_vector;
-            if (function != nullptr)
-                _instruction_vector = &function->_instructions;
-            else
-                _instruction_vector = &_start_instruments;
-            auto index = _instruction_vector->size();
-            _instruction_vector->emplace_back(Instruction(index, operation));
+                std::vector<Instruction> *_instruction_vector;
+                if (function != nullptr)
+                    _instruction_vector = &function->_instructions;
+                else
+                    _instruction_vector = &_start_instruments;
+                auto index = _instruction_vector->size();
+                _instruction_vector->emplace_back(Instruction(index, operation));
+            } else {
+                break;
+            }
         }
         if (!has_rhs)
             return_type = lhs_type;
@@ -1251,26 +1255,30 @@ namespace expresser {
             return std::make_pair(std::optional<TokenType>(), res.second.value());
         lhs_type = res.first.value();
 
-        auto seek = seekToken(1);
-        if (seek.has_value() && (seek->GetType() == MULTIPLE || seek->GetType() == DIVIDE)) {
-            // 跳过
-            nextToken();
-            Operation operation;
-            operation = seek->GetType() == MULTIPLE ? Operation::IMUL : Operation::IDIV;
+        for (;;) {
+            auto seek = seekToken(1);
+            if (seek.has_value() && (seek->GetType() == MULTIPLE || seek->GetType() == DIVIDE)) {
+                // 跳过
+                nextToken();
+                Operation operation;
+                operation = seek->GetType() == MULTIPLE ? Operation::IMUL : Operation::IDIV;
 
-            res = parseCastExpression(function);
-            if (res.second.has_value())
-                return std::make_pair(std::optional<TokenType>(), res.second.value());
-            rhs_type = res.first.value();
-            has_rhs = true;
+                res = parseCastExpression(function);
+                if (res.second.has_value())
+                    return std::make_pair(std::optional<TokenType>(), res.second.value());
+                rhs_type = res.first.value();
+                has_rhs = true;
 
-            std::vector<Instruction> *_instruction_vector;
-            if (function != nullptr)
-                _instruction_vector = &function->_instructions;
-            else
-                _instruction_vector = &_start_instruments;
-            auto index = _instruction_vector->size();
-            _instruction_vector->emplace_back(Instruction(index, operation));
+                std::vector<Instruction> *_instruction_vector;
+                if (function != nullptr)
+                    _instruction_vector = &function->_instructions;
+                else
+                    _instruction_vector = &_start_instruments;
+                auto index = _instruction_vector->size();
+                _instruction_vector->emplace_back(Instruction(index, operation));
+            } else {
+                break;
+            }
         }
         if (!has_rhs)
             return_type = lhs_type;
