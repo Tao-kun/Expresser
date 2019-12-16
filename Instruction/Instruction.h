@@ -121,8 +121,8 @@ namespace expresser {
             _opcode = _op;
             _params.first._size = _size1;
             ::memcpy(_params.first._value, &param1, _size1);
-            _params.first._size = _size2;
-            ::memcpy(_params.second._value, &param1, _size2);
+            _params.second._size = _size2;
+            ::memcpy(_params.second._value, &param2, _size2);
         }
 
         void SetIndex(uint32_t index) {
