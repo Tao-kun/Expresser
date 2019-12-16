@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -20,7 +21,7 @@ std::vector<expresser::Token> _allToken(std::istream &_input) {
 }
 
 void write_to_file(const expresser::Parser &_parser, std::ostream &_output) {
-    _output << ".constants\n";
+    _output << ".constants:\n";
     for (auto constant:_parser._global_constants) {
         _output << fmt::format("{}\n", constant.ToCode());
     }
@@ -29,18 +30,24 @@ void write_to_file(const expresser::Parser &_parser, std::ostream &_output) {
         _output << fmt::format("{}\n", instrument);
     }
     auto functions = _parser._functions;
-    _output << ".functions:\n";
+    std::vector<std::pair<int32_t, std::string>> function_information;
+    function_information.reserve(functions.size());
     for (const auto &function:functions) {
-        _output << fmt::format("{} {} {} {}\n", function.second._index, function.second._name_index,
-                               function.second._params_size, function.second._level);
+        function_information.emplace_back(std::make_pair(function.second._index, function.first));
     }
-    int32_t counter = 0;
-    for (const auto &function:functions) {
-        _output << fmt::format(".F{}:\n", counter);
-        for (const auto &instrument:function.second._instructions) {
+    std::sort(function_information.begin(), function_information.end());
+    _output << ".functions:\n";
+    for (const auto &it:function_information) {
+        auto function = functions.find(it.second);
+        _output << fmt::format("{} {} {} {}\n", function->second._index, function->second._name_index,
+                               function->second._params_size, function->second._level);
+    }
+    for (const auto &it:function_information) {
+        auto function = functions.find(it.second);
+        _output << fmt::format(".F{}:\n", it.first);
+        for (const auto &instrument:function->second._instructions) {
             _output << fmt::format("{}\n", instrument);
         }
-        counter++;
     }
 }
 

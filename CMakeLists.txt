@@ -43,7 +43,7 @@ set_target_properties(${PROJECT_LIB} PROPERTIES
 target_include_directories(${PROJECT_EXE} PRIVATE .)
 target_include_directories(${PROJECT_LIB} PRIVATE .)
 
-target_compile_options(${PROJECT_EXE} PRIVATE -Wall -g -O2 -ftemplate-backtrace-limit=0)
-target_compile_options(${PROJECT_LIB} PRIVATE -Wall -g -O2 -ftemplate-backtrace-limit=0)
+target_compile_options(${PROJECT_EXE} PRIVATE -Wall -g -O2)
+target_compile_options(${PROJECT_LIB} PRIVATE -Wall -g -O2)
 
 target_link_libraries(${PROJECT_EXE} ${PROJECT_LIB} argparse fmt::fmt)

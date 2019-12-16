@@ -21,27 +21,17 @@ namespace expresser {
 
     struct Constant {
         // 常量有字符串S、双浮点D、整型I三种类型
-        int32_t _index{};
-        char _type{};
+        int32_t _index;
+        char _type;
         std::variant<int32_t, double, std::string> _value;
 
         Constant() = default;
+
         template<typename T>
-        Constant(int32_t index, char type, T value);
+        Constant(int32_t index, char type, T value): _index(index), _type(type), _value(value) {}
 
-        Constant(const Constant &c) : _index(c._index), _type(c._index), _value(c._value) {};
+        Constant(const Constant &c) : _index(c._index), _type(c._type), _value(c._value) {};
         std::string ToCode();
-    };
-
-    struct Variable {
-        int32_t _index{};
-        TokenType _type{};
-
-        Variable() = default;
-
-        Variable(int32_t index, TokenType type) : _index(index), _type(type) {}
-
-        Variable(const Variable &v) : _index(v._index), _type(v._type) {}
     };
 
     struct FunctionParam {
@@ -67,11 +57,12 @@ namespace expresser {
         // 局部栈顶值，初始值为参数个数
         int32_t _local_sp{};
         // 局部常量表
-        std::map<std::string, Variable> _local_constants;
+        std::map<std::string, int32_t> _local_constants;
         // 局部变量表（已初始化）
-        std::map<std::string, Variable> _local_vars;
+        std::map<std::string, int32_t> _local_vars;
         // 局部变量表（未初始化）
-        std::map<std::string, Variable> _local_uninitialized;
+        std::map<std::string, int32_t> _local_uninitialized;
+        std::map<std::string, TokenType> _local_type_map;
         std::vector<Instruction> _instructions;
         // break和continue表
         std::vector<std::pair<int32_t, std::string>> _loop_jumps;
@@ -93,13 +84,14 @@ namespace expresser {
         std::vector<expresser::Token> _tokens;
         std::map<std::string, int32_t> _global_constants_index;
         // 全局常量表（栈上）
-        std::map<std::string, Variable> _global_stack_constants;
+        std::map<std::string, int32_t> _global_stack_constants;
         // 全局栈顶值
         int32_t _global_sp;
         // 全局变量在栈中地址
-        std::map<std::string, Variable> _global_variables;
+        std::map<std::string, int32_t> _global_variables;
         // 全局未初始化变量在栈中地址
-        std::map<std::string, Variable> _global_uninitialized;
+        std::map<std::string, int32_t> _global_uninitialized;
+        std::map<std::string, TokenType> _global_type_map;
     public:
         // 全局常量表
         std::vector<Constant> _global_constants;
@@ -119,7 +111,7 @@ namespace expresser {
         std::optional<Token> seekToken(int32_t offset);
         void rollback();
         template<typename T>
-        std::optional<ExpresserError> addGlobalConstant(const std::string &constant_name, char type, T value);
+        std::optional<ExpresserError> addGlobalConstant(const std::string &constant_name, const char type, T value);
         std::optional<ExpresserError> addGlobalConstant(const std::string &variable_name, TokenType type);
         std::optional<ExpresserError> addGlobalVariable(const std::string &variable_name, TokenType type);
         std::pair<Function *, std::optional<ExpresserError>>
