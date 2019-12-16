@@ -34,6 +34,14 @@ void write_to_file(const expresser::Parser &_parser, std::ostream &_output) {
         _output << fmt::format("{} {} {} {}\n", function.second._index, function.second._name_index,
                                function.second._params_size, function.second._level);
     }
+    int32_t counter = 0;
+    for (const auto &function:functions) {
+        _output << fmt::format(".F{}:\n", counter);
+        for (const auto &instrument:function.second._instructions) {
+            _output << fmt::format("{}\n", instrument);
+        }
+        counter++;
+    }
 }
 
 void lexer(std::istream &_input, std::ostream &_output) {

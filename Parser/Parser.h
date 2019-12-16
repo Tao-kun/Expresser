@@ -72,7 +72,8 @@ namespace expresser {
         // 构造函数
         Function() = default;
 
-        Function(int32_t index, int32_t name_index, int32_t param_size, TokenType return_type, std::vector<FunctionParam> params) :
+        Function(int32_t index, int32_t name_index, int32_t param_size, TokenType return_type,
+                 std::vector<FunctionParam> params) :
                 _index(index), _name_index(name_index), _params_size(param_size), _level(1),
                 _return_type(return_type), _params(std::move(params)), _local_sp(param_size) {}
     };
@@ -101,7 +102,8 @@ namespace expresser {
         std::map<std::string, Function> _functions;
     public:
         explicit Parser(std::vector<expresser::Token> _token_vector) :
-                _program_end(false), _offset(0), _current_pos({0, 0}), _tokens(std::move(_token_vector)), _global_sp(0) {}
+                _program_end(false), _offset(0), _current_pos({0, 0}), _tokens(std::move(_token_vector)),
+                _global_sp(0) {}
 
         std::optional<ExpresserError> Parse();
     private:
@@ -113,15 +115,14 @@ namespace expresser {
         std::optional<ExpresserError> addGlobalConstant(const std::string &constant_name, char type, T value);
         std::optional<ExpresserError> addGlobalConstant(const std::string &variable_name, TokenType type);
         std::optional<ExpresserError> addGlobalVariable(const std::string &variable_name, TokenType type);
-        std::pair<std::optional<Function>, std::optional<ExpresserError>>
+        std::pair<Function *, std::optional<ExpresserError>>
         addFunction(const std::string &function_name, const TokenType &return_type, const std::vector<FunctionParam> &params);
-        std::optional<ExpresserError>
-        addLocalConstant(const std::string &function_name, TokenType type, const std::string &constant_name, std::any value);
-        std::optional<ExpresserError>
-        addLocalVariable(const std::string &function_name, TokenType type, const std::string &variable_name);
+        std::optional<ExpresserError> addLocalConstant(Function &function, TokenType type, const std::string &constant_name);
+        std::optional<ExpresserError> addLocalVariable(Function &function, TokenType type, const std::string &variable_name);
         std::pair<std::optional<int32_t>, std::optional<ExpresserError>> getIndex(const std::string &variable_name);
-        std::pair<std::optional<int32_t>, std::optional<ExpresserError>> getIndex(Function &function, const std::string &variable_name);
-        std::pair<std::optional<Function>, std::optional<ExpresserError>> getFunction(const std::string &function_name);
+        std::pair<std::optional<int32_t>, std::optional<ExpresserError>>
+        getIndex(Function &function, const std::string &variable_name);
+        std::pair<Function *, std::optional<ExpresserError>> getFunction(const std::string &function_name);
         bool isGlobalVariable(const std::string &variable_name);
         bool isGlobalInitializedVariable(const std::string &variable_name);
         bool isGlobalUnInitializedVariable(const std::string &variable_name);
@@ -142,16 +143,17 @@ namespace expresser {
         std::optional<ExpresserError> parseProgram();
         std::optional<ExpresserError> parseGlobalDeclarations();
         std::optional<ExpresserError> parseFunctionDefinitions();
-        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseExpression(std::optional<Function> function);
-        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseMultiplicativeExpression(std::optional<Function> function);
-        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseUnaryExpression(std::optional<Function> function);
-        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parsePrimaryExpression(std::optional<Function> function);
-        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseFunctionCall(std::optional<Function> function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseExpression(Function *function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseMultiplicativeExpression(Function *function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseUnaryExpression(Function *function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parsePrimaryExpression(Function *function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseFunctionCall(Function *function);
         std::optional<ExpresserError> parseParameterDeclarations(std::vector<FunctionParam> &params);
         std::optional<ExpresserError> parseFunctionDefinition();
         std::optional<ExpresserError> parseCompoundStatement(Function &function);
         std::optional<ExpresserError> parseLocalVariableDeclarations(Function &function);
         std::optional<ExpresserError> parseStatements(Function &function);
+        std::pair<bool, std::optional<ExpresserError>> parseStatement(Function &function);
         std::optional<ExpresserError> parseConditionStatement(Function &function);
         std::pair<std::optional<Operation>, std::optional<ExpresserError>> parseCondition(Function &function);
         std::optional<ExpresserError> parseLoopStatement(Function &function);
@@ -161,7 +163,7 @@ namespace expresser {
         std::optional<ExpresserError> parseScanStatement(Function &function);
         std::optional<ExpresserError> parseAssignmentExpression(Function &function);
         // 拓展C0
-        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseCastExpression(std::optional<Function> function);
+        std::pair<std::optional<TokenType>, std::optional<ExpresserError>> parseCastExpression(Function *function);
 
         // 静态函数
         static bool isVariableType(const Token &token);
