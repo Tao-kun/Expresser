@@ -1013,7 +1013,7 @@ namespace expresser {
         token = nextToken();
         if (!token.has_value() || token->GetType() != SEMICOLON)
             return errorFactory(ErrorCode::ErrNoSemicolon);
-        // 换行
+        // 追加换行
         auto index = function._instructions.size();
         function._instructions.emplace_back(Instruction(index, Operation::PRINTL));
         return {};
@@ -1032,9 +1032,13 @@ namespace expresser {
             if (token->GetType() == RIGHTBRACKET) {
                 rollback();
                 break;
-            } else if (token->GetType() == COMMA)
+            } else if (token->GetType() == COMMA) {
+                // 追加空格
+                auto index = function._instructions.size();
+                function._instructions.emplace_back(Instruction(index, BIPUSH, 1, 32));
+                function._instructions.emplace_back(Instruction(index + 1, CPRINT));
                 continue;
-            else if (token->GetType() == CHARLITERAL) {
+            } else if (token->GetType() == CHARLITERAL) {
                 auto index = function._instructions.size();
                 function._instructions.emplace_back(
                         Instruction(index, Operation::IPUSH, 4, std::any_cast<int32_t>(token->GetValue())));
@@ -1202,7 +1206,7 @@ namespace expresser {
         //<additive-expression> ::=
         //     <multiplicative-expression>{<additive-operator><multiplicative-expression>}
         bool has_rhs = false;
-        TokenType lhs_type = INTEGER, rhs_type = INTEGER, return_type = INTEGER;
+        TokenType lhs_type, rhs_type, return_type;
         auto res = parseMultiplicativeExpression(function);
         if (res.second.has_value())
             return std::make_pair(std::optional<TokenType>(), res.second.value());
@@ -1249,7 +1253,7 @@ namespace expresser {
         //<multiplicative-expression> ::=
         //     <cast-expression>{<multiplicative-operator><cast-expression>}
         bool has_rhs = false;
-        TokenType lhs_type = INTEGER, rhs_type = INTEGER, return_type = INTEGER;
+        TokenType lhs_type, rhs_type, return_type;
         auto res = parseCastExpression(function);
         if (res.second.has_value())
             return std::make_pair(std::optional<TokenType>(), res.second.value());
@@ -1295,7 +1299,7 @@ namespace expresser {
     Parser::parseUnaryExpression(Function *function) {
         //<unary-expression> ::=
         //    [<unary-operator>]<primary-expression>
-        TokenType return_type = INTEGER;
+        TokenType return_type;
         bool reverse = false;
         auto token = nextToken();
         if (!token.has_value())
@@ -1333,7 +1337,7 @@ namespace expresser {
         //    |<function-call>
         //    |<char-literal>   --   拓展C0，char
         auto token = nextToken();
-        TokenType return_type = INTEGER;
+        TokenType return_type;
         if (!token.has_value())
             return std::make_pair(std::optional<TokenType>(), errorFactory(ErrorCode::ErrIncompleteExpression));
         switch (token->GetType()) {
@@ -1461,7 +1465,7 @@ namespace expresser {
         //<cast-expression> ::=
         //    {'('<type-specifier>')'}<unary-expression>
         bool cast = false;
-        TokenType return_type = INTEGER;
+        TokenType return_type;
         auto seek1 = seekToken(1), seek2 = seekToken(2), seek3 = seekToken(3);
         if (seek1.has_value() && seek1->GetType() == LEFTBRACKET &&
             seek2.has_value() && seek2->GetType() == RESERVED &&
