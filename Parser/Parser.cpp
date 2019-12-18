@@ -1053,6 +1053,7 @@ namespace expresser {
                 if (it == _global_constants_index.end()) {
                     const_index = _global_constants.size();
                     _global_constants.emplace_back(Constant(const_index, 'S', token->GetStringValue()));
+                    _global_constants_index.insert({token->GetStringValue(), const_index});
                 } else {
                     const_index = it->second;
                 }
