@@ -25,7 +25,7 @@ void write_to_file(const expresser::Parser &_parser, std::ostream &_output) {
     for (auto constant:_parser._global_constants) {
         _output << fmt::format("{}\n", constant.ToCode());
     }
-    _output << ".starts:\n";
+    _output << ".start:\n";
     for (expresser::Instruction instrument:_parser._start_instruments) {
         _output << fmt::format("{}\n", instrument);
     }
@@ -128,9 +128,7 @@ int main(int argc, char **argv) {
         std::cerr << "Create file " << output_file << " error" << std::endl;
         exit(3);
     }
-    // TODO: remove it after finish all
-    // output = &outfs;
-    output = &std::cout;
+    output = &outfs;
 
     if (arg["-l"] == true && arg["-s"] == true) {
         std::cerr << "Cannot run lexer and parser at once" << std::endl;

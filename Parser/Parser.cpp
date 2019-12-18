@@ -299,7 +299,8 @@ namespace expresser {
 
                     // ISTORE存回
                     // 此时栈顶为<expression>结果，次栈顶为LOADA取出的地址
-                    _start_instruments.emplace_back(Instruction(index + 1, Operation::ISTORE));
+                    index = _start_instruments.size();
+                    _start_instruments.emplace_back(Instruction(index, Operation::ISTORE));
 
                     // , or ;
                     token = nextToken();
@@ -353,7 +354,8 @@ namespace expresser {
 
                         // 此时全局栈的栈顶就是结果，次栈顶是目标地址
                         // istore
-                        _start_instruments.emplace_back(Instruction(index + 1, Operation::ISTORE));
+                        index = _start_instruments.size();
+                        _start_instruments.emplace_back(Instruction(index, Operation::ISTORE));
                         // 移出未初始化表
                         auto it = _global_uninitialized.find(identifier);
                         // 移入_global_variables
@@ -562,7 +564,8 @@ namespace expresser {
                     if (res.second.has_value())
                         return res.second.value();
 
-                    function._instructions.emplace_back(Instruction(index + 1, Operation::ISTORE));
+                    index = function._instructions.size();
+                    function._instructions.emplace_back(Instruction(index, Operation::ISTORE));
 
                     token = nextToken();
                     if (token.has_value()) {
@@ -612,7 +615,8 @@ namespace expresser {
                         if (res.second.has_value())
                             return res.second.value();
 
-                        function._instructions.emplace_back(Instruction(index + 1, Operation::ISTORE));
+                        index = function._instructions.size();
+                        function._instructions.emplace_back(Instruction(index, Operation::ISTORE));
                         auto it = function._local_uninitialized.find(identifier);
                         if (it != function._local_uninitialized.end()) {
                             function._local_vars.insert({it->first, it->second});
@@ -1044,8 +1048,14 @@ namespace expresser {
                         Instruction(index, Operation::IPUSH, 4, std::any_cast<int32_t>(token->GetValue())));
                 function._instructions.emplace_back(Instruction(index + 1, Operation::CPRINT));
             } else if (token->GetType() == STRINGLITERAL) {
-                auto const_index = _global_constants.size();
-                _global_constants.emplace_back(Constant(const_index, 'S', token->GetStringValue()));
+                int32_t const_index;
+                auto it = _global_constants_index.find(token->GetStringValue());
+                if (it == _global_constants_index.end()) {
+                    const_index = _global_constants.size();
+                    _global_constants.emplace_back(Constant(const_index, 'S', token->GetStringValue()));
+                } else {
+                    const_index = it->second;
+                }
                 auto index = function._instructions.size();
                 function._instructions.emplace_back(Instruction(index, Operation::LOADC, 2, const_index));
                 function._instructions.emplace_back(Instruction(index + 1, Operation::SPRINT));

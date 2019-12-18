@@ -291,15 +291,16 @@ namespace fmt {
                     break;
                 value = 0;
                 ::memcpy(&value, params.first._value, params.first._size);
+                string_param += " ";
                 string_param += std::to_string(value);
                 if (params.second._size == 0)
                     break;
                 value = 0;
                 ::memcpy(&value, params.second._value, params.second._size);
-                string_param += " " + std::to_string(value);
+                string_param += "," + std::to_string(value);
                 break;
             }
-            return format_to(ctx.out(), "{} {} {}", std::to_string(inst.GetIndex()), inst.GetOperation(), string_param);
+            return format_to(ctx.out(), "{} {}{}", std::to_string(inst.GetIndex()), inst.GetOperation(), string_param);
         }
     };
 
