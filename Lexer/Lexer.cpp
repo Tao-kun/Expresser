@@ -58,7 +58,7 @@ namespace expresser {
 
         // 辅助函数
         auto return_int = [&]() {
-            int32_t int_value;
+            uint32_t int_value;
             if (current_state == HEX_STATE)
                 ss >> std::hex >> int_value;
             else
@@ -66,8 +66,7 @@ namespace expresser {
             if (ss.fail())
                 return errorFactory(ErrorCode::ErrInvalidInteger);
             else
-                return std::make_pair(std::make_optional<Token>(TokenType::INTEGER, int_value, pos, currPos()),
-                                      std::optional<ExpresserError>());
+                return std::make_pair(std::make_optional<Token>(TokenType::INTEGER, *(int32_t *) &int_value, pos, currPos()), std::optional<ExpresserError>());
         };
         auto return_ident = [&]() {
             std::string str;
