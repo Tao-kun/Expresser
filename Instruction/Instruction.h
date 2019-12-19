@@ -7,7 +7,7 @@
 #include "Types.h"
 
 namespace expresser {
-    enum Operation : unsigned char {
+    enum Operation : uint8_t {
         NOP = 0x00,
         BIPUSH = 0x01,
         IPUSH = 0x02,
@@ -89,7 +89,7 @@ namespace expresser {
 
     struct InstructionParam {
         uint8_t _size{};
-        unsigned char _value[4] = {0};
+        uint8_t _value[4] = {0};
     };
 
     class Instruction {
@@ -139,6 +139,19 @@ namespace expresser {
 
         std::pair<InstructionParam, InstructionParam> GetParams() {
             return _params;
+        }
+
+        std::vector<uint8_t> ToBinary() {
+            std::vector<uint8_t> result;
+            auto opcode = (uint8_t) _opcode;
+            result.push_back(opcode);
+            if (_params.first._size != 0)
+                for (int i = _params.first._size - 1; i >= 0; i--)
+                    result.push_back(_params.first._value[i]);
+            if (_params.second._size != 0)
+                for (int i = _params.second._size - 1; i >= 0; i--)
+                    result.push_back(_params.second._value[i]);
+            return result;
         }
     };
 }

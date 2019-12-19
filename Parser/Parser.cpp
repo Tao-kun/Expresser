@@ -22,6 +22,66 @@ namespace expresser {
         return result;
     }
 
+    std::vector<uint8_t> Constant::ToBinary() {
+        uint8_t *cpy_pointer;
+        std::vector<uint8_t> result;
+        uint8_t type;
+        switch (_type) {
+            case 'S':
+                type = 0;
+                break;
+            case 'I':
+                type = 1;
+                break;
+            default:
+                std::cerr << "Unknown constant type" << std::endl;
+                exit(2);
+        }
+        result.push_back(type);
+        if (type == 0) {
+            auto string_value = std::get<std::string>(_value);
+            auto string_length = (uint16_t) string_value.length();
+            cpy_pointer = (uint8_t *) &string_length;
+            for (int i = 1; i >= 0; i--)
+                result.push_back(cpy_pointer[i]);
+            for (uint8_t ch:string_value)
+                result.push_back(ch);
+        } else {
+            auto *value_pointer = (uint8_t *) &std::get<int32_t>(_value);
+            for (int i = 3; i >= 0; i--)
+                result.push_back(value_pointer[i]);
+        }
+        return result;
+    }
+
+    std::vector<uint8_t> Function::ToBinary() {
+        uint8_t *cpy_pointer;
+        std::vector<uint8_t> result;
+
+        cpy_pointer = (uint8_t *) &_name_index;
+        for (int i = 1; i >= 0; i--)
+            result.push_back(cpy_pointer[i]);
+
+        cpy_pointer = (uint8_t *) &_params_size;
+        for (int i = 1; i >= 0; i--)
+            result.push_back(cpy_pointer[i]);
+
+        cpy_pointer = (uint8_t *) &_level;
+        for (int i = 1; i >= 0; i--)
+            result.push_back(cpy_pointer[i]);
+
+        auto instrument_count = _instructions.size();
+        cpy_pointer = (uint8_t *) &instrument_count;
+        for (int i = 1; i >= 0; i--)
+            result.push_back(cpy_pointer[i]);
+
+        for (auto instrument:_instructions) {
+            auto instrument_binary = instrument.ToBinary();
+            result.insert(result.end(), instrument_binary.begin(), instrument_binary.end());
+        }
+        return result;
+    }
+
     std::optional<ExpresserError> Parser::Parse() {
         auto err = parseProgram();
         if (err.has_value())

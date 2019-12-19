@@ -32,6 +32,7 @@ namespace expresser {
 
         Constant(const Constant &c) : _index(c._index), _type(c._type), _value(c._value) {};
         std::string ToCode();
+        std::vector<unsigned char> ToBinary();
     };
 
     struct FunctionParam {
@@ -74,6 +75,9 @@ namespace expresser {
                  std::vector<FunctionParam> params) :
                 _index(index), _name_index(name_index), _params_size(param_size), _level(1),
                 _return_type(return_type), _params(std::move(params)), _local_sp(param_size) {}
+
+    public:
+        std::vector<uint8_t> ToBinary();
     };
 
     class Parser final {

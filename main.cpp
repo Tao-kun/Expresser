@@ -6,6 +6,7 @@
 #include "argparse.hpp"
 #include "fmt/core.h"
 
+#include "Binary.h"
 #include "fmts.hpp"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
@@ -20,7 +21,7 @@ std::vector<expresser::Token> _allToken(std::istream &_input) {
     return res.first;
 }
 
-void write_to_file(const expresser::Parser &_parser, std::ostream &_output) {
+void write_assembly_to_file(const expresser::Parser &_parser, std::ostream &_output) {
     _output << ".constants:\n";
     for (auto constant:_parser._global_constants) {
         _output << fmt::format("{}\n", constant.ToCode());
@@ -51,12 +52,6 @@ void write_to_file(const expresser::Parser &_parser, std::ostream &_output) {
     }
 }
 
-void lexer(std::istream &_input, std::ostream &_output) {
-    auto t = _allToken(_input);
-    for (const auto &token:t) {
-        _output << fmt::format("{}\n", token);
-    }
-}
 
 void assembly(std::istream &_input, std::ostream &_output) {
     auto tks = _allToken(_input);
@@ -66,22 +61,29 @@ void assembly(std::istream &_input, std::ostream &_output) {
         fmt::print(stderr, "Parser error: {}\n", err.value());
         exit(2);
     }
-    write_to_file(parser, _output);
+    write_assembly_to_file(parser, _output);
 }
 
 void binary(std::istream &_input, std::ostream &_output) {
-
+    auto tks = _allToken(_input);
+    expresser::Parser parser(tks);
+    auto err = parser.Parse();
+    if (err.has_value()) {
+        fmt::print(stderr, "Parser error: {}\n", err.value());
+        exit(2);
+    }
+    write_binary_to_file(parser, _output);
 }
 
 int main(int argc, char **argv) {
-    argparse::ArgumentParser arg("expresser");
+    argparse::ArgumentParser arg("c0");
     arg.add_argument("input")
             .required()
             .help("Source code file");
-    arg.add_argument("-l")
+    arg.add_argument("-c")
             .default_value(false)
             .implicit_value(true)
-            .help("Lexer");
+            .help("Binary");
     arg.add_argument("-s")
             .default_value(false)
             .implicit_value(true)
@@ -119,21 +121,24 @@ int main(int argc, char **argv) {
     if (output_file.empty()) {
         output_file = "out";
     }
-    outfs.open(output_file, std::ios::out | std::ios::trunc);
+    if (arg["-s"] == true)
+        outfs.open(output_file, std::ios::out | std::ios::trunc);
+    else
+        outfs.open(output_file, std::ios::out | std::ios::binary);
     if (!outfs) {
         std::cerr << "Create file " << output_file << " error" << std::endl;
         exit(3);
     }
     output = &outfs;
 
-    if (arg["-l"] == true && arg["-s"] == true) {
+    if (arg["-c"] == true && arg["-s"] == true) {
         std::cerr << "Cannot run lexer and parser at once" << std::endl;
         exit(2);
     }
     if (arg["-s"] == true)
         assembly(*input, *output);
-    else if (arg["-l"] == true)
-        lexer(*input, *output);
+    else if (arg["-c"] == true)
+        binary(*input, *output);
     else
         std::cerr << "Must choose running lexer or parser" << std::endl;
     return 0;

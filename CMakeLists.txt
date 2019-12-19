@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.12)
 project(Expresser)
 
 set(PROJECT_NAME expresser)
-set(PROJECT_EXE ${PROJECT_NAME})
-set(PROJECT_LIB ${PROJECT_EXE}_lib)
+set(PROJECT_EXE c0)
+set(PROJECT_LIB std${PROJECT_EXE})
 
 # Compiler
 set(CMAKE_CXX_STANDARD 17)
@@ -26,6 +26,7 @@ set(LIB_FILES
         Parser/Parser.cpp)
 
 set(MAIN_FILES
+        Binary.h
         fmts.hpp
         main.cpp)
 
