@@ -493,11 +493,9 @@ namespace expresser {
         if (err.has_value())
             return err.value();
 
-        // 如果是void函数，添加ret
-        if (return_type == VOID) {
-            auto index = function->_instructions.size();
-            function->_instructions.emplace_back(Instruction(index, Operation::RET));
-        }
+        // 添加ret，避免无法跳出
+        auto index = function->_instructions.size();
+        function->_instructions.emplace_back(Instruction(index, Operation::RET));
 
         return {};
     }
@@ -1417,6 +1415,10 @@ namespace expresser {
                 if (res.second.has_value())
                     return std::make_pair(std::optional<TokenType>(), res.second.value());
                 return_type = res.first.value();
+                // nmd,忘记解析右括号了
+                token = nextToken();
+                if (!token.has_value() || token->GetType() != RIGHTBRACKET)
+                    return std::make_pair(return_type, errorFactory(ErrorCode::ErrMissingBracket));
                 break;
             }
             case CHARLITERAL:
