@@ -86,10 +86,6 @@ int main(int argc, char **argv) {
             .default_value(false)
             .implicit_value(true)
             .help("Assembly");
-    arg.add_argument("-c")
-            .default_value(false)
-            .implicit_value(true)
-            .help("Binary");
     arg.add_argument("-o", "--output")
             .default_value(std::string(""))
             .help("Output file");
@@ -134,15 +130,11 @@ int main(int argc, char **argv) {
         std::cerr << "Cannot run lexer and parser at once" << std::endl;
         exit(2);
     }
-    if (arg["-s"] == true) {
+    if (arg["-s"] == true)
         assembly(*input, *output);
-    } else if (arg["-l"] == true) {
+    else if (arg["-l"] == true)
         lexer(*input, *output);
-    } else {
-        if (arg["-c"] == true)
-            binary(*input, *output);
-        else
-            std::cerr << "Must choose running lexer or parser" << std::endl;
-    }
+    else
+        std::cerr << "Must choose running lexer or parser" << std::endl;
     return 0;
 }

@@ -92,7 +92,7 @@ namespace expresser {
             return std::make_pair(nullptr, err.value());
         Function function(_functions.size(), _global_constants_index.find(function_name)->second, params.size(), return_type, params);
         // 把参数信息放入函数变量、常量表中
-        for (int32_t i = 0; i < params.size(); i++) {
+        for (size_t i = 0; i < params.size(); i++) {
             auto p = params[i];
             if (p._is_const)
                 function._local_constants.insert({p._value, i});

@@ -21,3 +21,20 @@
 - [x] (9)`char`（能够参与运算）
 
 - [ ] (10)`double`
+
+## 用法
+
+```
+Usage: expresser [options] input
+
+Positional arguments:
+input           Source code file[Required]
+
+Optional arguments:
+-h --help       show this help message and exit
+-l              Lexer
+-s              Assembly
+-o --output     Output file
+```
+
+未指定输出文件名时，默认为`out`
