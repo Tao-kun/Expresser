@@ -278,7 +278,9 @@ namespace expresser {
     }
 
     bool Parser::isConstant(Function &function, const std::string &variable_name) {
-        return isLocalConstant(function, variable_name) || isGlobalConstant(variable_name);
+        if (isLocalVariable(function, variable_name))
+            return isLocalConstant(function, variable_name);
+        return isGlobalConstant(variable_name);
     }
 
     std::optional<TokenType> Parser::getVariableType(const std::string &variable_name) {
