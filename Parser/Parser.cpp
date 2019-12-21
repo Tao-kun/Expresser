@@ -1452,12 +1452,15 @@ namespace expresser {
                     auto var_name = token->GetStringValue();
                     int32_t var_index;
                     if (function != nullptr) {
+                        // 函数内
                         int32_t level;
                         auto index = function->_instructions.size();
                         auto function_name = std::get<std::string>(_global_constants[function->_name_index]._value);
                         if (isUnInitialized(*function, var_name))
                             return std::make_pair(std::optional<TokenType>(), errorFactory(ErrorCode::ErrNotInitialized));
                         if (isLocalVariable(*function, var_name)) {
+                            if (isLocalUnInitializedVariable(*function, var_name))
+                                return std::make_pair(std::optional<TokenType>(), errorFactory(ErrorCode::ErrNotInitialized));
                             auto res = getIndex(*function, var_name);
                             if (res.second.has_value())
                                 return std::make_pair(std::optional<TokenType>(), res.second.value());
@@ -1465,6 +1468,8 @@ namespace expresser {
                             level = 0;
                             return_type = getVariableType(*function, var_name).value();
                         } else if (isGlobalVariable(var_name)) {
+                            if (isGlobalUnInitializedVariable(var_name))
+                                return std::make_pair(std::optional<TokenType>(), errorFactory(ErrorCode::ErrNotInitialized));
                             auto res = getIndex(var_name);
                             if (res.second.has_value())
                                 return std::make_pair(std::optional<TokenType>(), res.second.value());
@@ -1476,6 +1481,7 @@ namespace expresser {
                         function->_instructions.emplace_back(Instruction(index, LOADA, 2, level, 4, var_index));
                         function->_instructions.emplace_back(Instruction(index + 1, ILOAD));
                     } else {
+                        // start段
                         auto index = _start_instruments.size();
                         if (isGlobalUnInitializedVariable(var_name))
                             return std::make_pair(std::optional<TokenType>(),
