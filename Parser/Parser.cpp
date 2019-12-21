@@ -1418,7 +1418,7 @@ namespace expresser {
                 // nmd,忘记解析右括号了
                 token = nextToken();
                 if (!token.has_value() || token->GetType() != RIGHTBRACKET)
-                    return std::make_pair(return_type, errorFactory(ErrorCode::ErrMissingBracket));
+                    return std::make_pair(std::optional<TokenType>(), errorFactory(ErrorCode::ErrMissingBracket));
                 break;
             }
             case CHARLITERAL:
@@ -1565,6 +1565,10 @@ namespace expresser {
             return std::make_pair(std::optional<TokenType>(), res.second.value());
         if (!cast)
             return_type = res.first.value();
+        if (cast && res.first.value() == INTEGER && return_type == CHARLITERAL) {
+            auto index = function->_instructions.size();
+            function->_instructions.emplace_back(Instruction(index, I2C));
+        }
         return std::make_pair(return_type, std::optional<ExpresserError>());
     }
 

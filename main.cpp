@@ -121,10 +121,10 @@ int main(int argc, char **argv) {
     if (output_file.empty()) {
         output_file = "out";
     }
-    if (arg["-s"] == true)
-        outfs.open(output_file, std::ios::out | std::ios::trunc);
-    else
+    if (arg["-c"] == true)
         outfs.open(output_file, std::ios::out | std::ios::binary);
+    else
+        outfs.open(output_file, std::ios::out | std::ios::trunc);
     if (!outfs) {
         std::cerr << "Create file " << output_file << " error" << std::endl;
         exit(3);

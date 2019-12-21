@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project(Expresser)
 
 set(PROJECT_NAME expresser)
-set(PROJECT_EXE c0)
+set(PROJECT_EXE cc0)
 set(PROJECT_LIB std${PROJECT_EXE})
 
 # Compiler
