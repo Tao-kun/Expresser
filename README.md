@@ -25,14 +25,14 @@
 ## 用法
 
 ```
-Usage: expresser [options] input
+Usage: cc0 [options] input
 
 Positional arguments:
 input           Source code file[Required]
 
 Optional arguments:
 -h --help       show this help message and exit
--l              Lexer
+-c              Binary
 -s              Assembly
 -o --output     Output file
 ```

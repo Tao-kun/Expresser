@@ -56,6 +56,7 @@ namespace expresser {
             GREATER,
             LESSEQUAL,
             GREATEREQUAL,
+            NOTEQUAL,
             EQUAL
     };
 
