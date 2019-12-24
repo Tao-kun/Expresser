@@ -109,7 +109,6 @@ namespace expresser {
                     else if (expresser::isalpha(ch))
                         current_state = DFAState::IDENTIFIER_STATE;
                     else {
-                        // TODO: impl it
                         switch (ch) {
                             case '+':
                                 current_state = PLUS_SIGN_STATE;
@@ -240,7 +239,6 @@ namespace expresser {
                     return errorFactory(ErrorCode::ErrInvalidNotEqual);
                 }
                 case INTEGER_STATE: {
-                    // TODO: impl it
                     // 普通 '0'|<nonzero-digit>{<digit>}
                     // 十六进制 碰到'x'/'X'就跳转 ('0x'|'0X')<hexadecimal-digit>{<hexadecimal-digit>}
                     // 浮点字面量 碰到'.'就跳转
@@ -381,7 +379,7 @@ namespace expresser {
                         }
                     } else if (ch == '/') {
                         // <single-line-comment> ::=
-                        //    '//'{<any-char>}<LF>
+                        //    '//'{<any-char>}(<LF>|<CR>)
                         for (; current_state == COMMENT_AND_DIVISION_SIGN_STATE; current_char = nextChar()) {
                             if (!current_char.has_value() ||
                                 current_char.value() == '\n' ||
@@ -415,7 +413,7 @@ namespace expresser {
                     ss.str(std::string(""));
                     // for EASCII
                     auto ch = current_char.value();
-                    int32_t _result = static_cast<int32_t>(ch);
+                    auto _result = static_cast<int32_t>(ch);
                     if (expresser::isaccch(ch) && ch != '\'' && ch != '\\' && ch != '\n' && ch != '\r') {
                         // <c-char>
                         current_char = nextChar();
