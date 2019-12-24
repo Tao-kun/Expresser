@@ -383,7 +383,9 @@ namespace expresser {
                         // <single-line-comment> ::=
                         //    '//'{<any-char>}<LF>
                         for (; current_state == COMMENT_AND_DIVISION_SIGN_STATE; current_char = nextChar()) {
-                            if (!current_char.has_value() || current_char.value() == '\n') {
+                            if (!current_char.has_value() ||
+                                current_char.value() == '\n' ||
+                                current_char.value() == '\r') {
                                 // EOF或者注释结束，返回初始状态
                                 current_state = INITIAL_STATE;
                                 break;
