@@ -358,6 +358,11 @@ namespace expresser {
                     auto res = parseExpression(nullptr);
                     if (res.second.has_value())
                         return res.second.value();
+                    auto expr_type = res.first.value();
+                    if (const_type == CHARLITERAL && expr_type == INTEGER) {
+                        index = _start_instruments.size();
+                        _start_instruments.emplace_back(Instruction(index, Operation::I2C));
+                    }
 
                     // ISTORE存回
                     // 此时栈顶为<expression>结果，次栈顶为LOADA取出的地址
@@ -413,6 +418,11 @@ namespace expresser {
                         auto res = parseExpression({});
                         if (res.second.has_value())
                             return res.second.value();
+                        auto expr_type = res.first.value();
+                        if (var_type == CHARLITERAL && expr_type == INTEGER) {
+                            index = _start_instruments.size();
+                            _start_instruments.emplace_back(Instruction(index, Operation::I2C));
+                        }
 
                         // 此时全局栈的栈顶就是结果，次栈顶是目标地址
                         // istore
@@ -629,6 +639,11 @@ namespace expresser {
                     auto res = parseExpression(&function);
                     if (res.second.has_value())
                         return res.second.value();
+                    auto expr_type = res.first.value();
+                    if (const_type == CHARLITERAL && expr_type == INTEGER) {
+                        index = function._instructions.size();
+                        function._instructions.emplace_back(Instruction(index, Operation::I2C));
+                    }
 
                     index = function._instructions.size();
                     function._instructions.emplace_back(Instruction(index, Operation::ISTORE));
@@ -652,10 +667,10 @@ namespace expresser {
                     rollback();
                     return {};
                 }
-                auto res = stringTypeToTokenType(token->GetStringValue());
-                if (!res.has_value())
+                auto vartype_res = stringTypeToTokenType(token->GetStringValue());
+                if (!vartype_res.has_value())
                     return errorFactory(ErrorCode::ErrInvalidVariableType);
-                TokenType var_type = res.value();
+                TokenType var_type = vartype_res.value();
                 for (;;) {
                     token = nextToken();
                     if (!token.has_value() || token->GetType() != IDENTIFIER)
@@ -680,6 +695,11 @@ namespace expresser {
                         auto res = parseExpression(&function);
                         if (res.second.has_value())
                             return res.second.value();
+                        auto expr_type = res.first.value();
+                        if (var_type == CHARLITERAL && expr_type == INTEGER) {
+                            index = function._instructions.size();
+                            function._instructions.emplace_back(Instruction(index, Operation::I2C));
+                        }
 
                         index = function._instructions.size();
                         function._instructions.emplace_back(Instruction(index, Operation::ISTORE));
