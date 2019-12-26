@@ -495,9 +495,15 @@ namespace expresser {
         if (err.has_value())
             return err.value();
 
+        // 如果最后没有ret/iret/dret/aret
         // 添加ret，避免无法跳出
         auto index = function->_instructions.size();
-        function->_instructions.emplace_back(Instruction(index, Operation::RET));
+        auto it = function->_instructions[index - 1];
+        if (it.GetOperation() != RET &&
+            it.GetOperation() != IRET &&
+            it.GetOperation() != DRET &&
+            it.GetOperation() != ARET)
+            function->_instructions.emplace_back(Instruction(index, Operation::RET));
 
         return {};
     }
