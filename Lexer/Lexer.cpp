@@ -418,14 +418,14 @@ namespace expresser {
                         // <c-char>
                         current_char = nextChar();
                         if (!current_char.has_value() || current_char.value() != '\'')
-                            return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
+                            return errorFactory(ErrorCode::ErrMissingRightQuote);
                     } else if (ch == '\\') {
                         //<escape-seq> ::=
                         //      '\\' | "\'" | '\"' | '\n' | '\r' | '\t'
                         //    | '\x'<hexadecimal-digit><hexadecimal-digit>
                         current_char = nextChar();
                         if (!current_char.has_value())
-                            return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
+                            return errorFactory(ErrorCode::ErrInvalidCharacter);
                         ch = current_char.value();
                         if (ch == 'r' || ch == 'n' || ch == 't' || ch == '\\' || ch == '\'' || ch == '"') {
                             // \{n,r,t,\}
@@ -444,7 +444,7 @@ namespace expresser {
                             }
                             current_char = nextChar();
                             if (!current_char.has_value() || current_char.value() != '\'')
-                                return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
+                                return errorFactory(ErrorCode::ErrMissingRightQuote);
                             _result = static_cast<int32_t>(ch);
                         } else if (ch == 'x') {
                             uint32_t arr[2] = {0, 0};
@@ -466,11 +466,11 @@ namespace expresser {
                             }
                             current_char = nextChar();
                             if (!current_char.has_value() || current_char.value() != '\'')
-                                return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
+                                return errorFactory(ErrorCode::ErrMissingRightQuote);
                             _result = (arr[0] * 16) + arr[1];
                         } else {
                             //error
-                            return errorFactory(ErrorCode::ErrInvalidCharacterAssignment);
+                            return errorFactory(ErrorCode::ErrUnknownEscapeCharacter);
                         }
                     } else {
                         return errorFactory(ErrorCode::ErrInvalidCharacter);
@@ -497,15 +497,28 @@ namespace expresser {
                             //<escape-seq> ::=
                             //      '\\' | "\'" | '\"' | '\n' | '\r' | '\t'
                             //    | '\x'<hexadecimal-digit><hexadecimal-digit>
-                            stringliteralstream << ch;
                             current_char = nextChar();
                             if (!current_char.has_value())
                                 return errorFactory(ErrorCode::ErrEOF);
                             ch = current_char.value();
                             if (ch == 'r' || ch == 'n' || ch == 't' || ch == '\\' || ch == '\'' || ch == '"') {
                                 // \{n,r,t,\}
+                                switch (ch) {
+                                    case 'r':
+                                        ch = '\r';
+                                        break;
+                                    case 'n':
+                                        ch = '\n';
+                                        break;
+                                    case 't':
+                                        ch = '\t';
+                                        break;
+                                    default:
+                                        break;
+                                }
                                 stringliteralstream << ch;
                             } else if (ch == 'x') {
+                                stringliteralstream << '\\';
                                 stringliteralstream << ch;
                                 for (int i = 0; i < 2; i++) {
                                     current_char = nextChar();
@@ -607,8 +620,7 @@ namespace expresser {
             return std::make_pair(std::make_optional<Token>(it->second, std::get<T>(it->first), pos, currPos()),
                                   std::optional<ExpresserError>());
         else
-            return std::make_pair(std::optional<Token>(),
-                                  std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
+            return std::make_pair(std::optional<Token>(), std::make_optional<ExpresserError>(pos, ErrorCode::ErrInvalidInput));
     }
 
     std::pair<std::optional<Token>, std::optional<ExpresserError>> Lexer::errorFactory(ErrorCode code) {

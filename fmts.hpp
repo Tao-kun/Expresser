@@ -34,8 +34,11 @@ namespace fmt {
                 case expresser::ErrAssignToConstant:
                     name = "AssignToConstant";
                     break;
+                case expresser::ErrCallFunctionInStartSection:
+                    name = "Not support call a function in start section";
+                    break;
                 case expresser::ErrCastToVoid:
-                    name = "ErrCastToVoid";
+                    name = "CastToVoid";
                     break;
                 case expresser::ErrConstantNeedValue:
                     name = "ConstantNeedValue";
@@ -53,37 +56,41 @@ namespace fmt {
                     name = "IncompleteExpression";
                     break;
                 case expresser::ErrIncompleteFunction:
-                    name = "IncompleteFunction";
+                    name = "Incomplete Function";
                     break;
                 case expresser::ErrInvalidAssignment:
-                    name = "InvalidAssignment";
+                    name = "Invalid Assignment: only need semicolon, assign symbol, comma";
                     break;
                 case expresser::ErrInvalidCast:
-                    name = "InvalidCast";
+                    name = "InvalidCast: unknown cast type";
                     break;
                 case expresser::ErrInvalidCharacter:
                     name = "InvalidCharacter";
-                    break;
-                case expresser::ErrInvalidCharacterAssignment:
-                    name = "ErrInvalidCharacterAssignment";
                     break;
                 case expresser::ErrInvalidDouble:
                     name = "InvalidDouble";
                     break;
                 case expresser::ErrInvalidExpression:
-                    name = "InvalidExpression";
+                    name = "InvalidExpression: input not match:\n"
+                           "<primary-expression> ::=\n"
+                           "     '('<expression>')'\n"
+                           "    |<identifier>\n"
+                           "    |<integer-literal>\n"
+                           "    |<function-call>\n"
+                           "    |<char-literal>";
                     break;
                 case expresser::ErrInvalidFunctionCall:
-                    name = "InvalidFunctionCall";
-                    break;
-                case expresser::ErrInvalidFunctionDeclaration:
-                    name = "InvalidFunctionDeclaration";
+                    name = "InvalidFunctionCall: EOF before a <function-call> ends\n"
+                           "<function-call> ::=\n"
+                           "    <identifier> '(' [<expression-list>] ')'\n"
+                           "<expression-list> ::=\n"
+                           "    <expression>{','<expression>}";
                     break;
                 case expresser::ErrInvalidFunctionReturnType:
-                    name = "ErrInvalidFunctionReturnType";
+                    name = "InvalidFunctionReturnType";
                     break;
                 case expresser::ErrInvalidIdentifier:
-                    name = "InvalidIdentifier";
+                    name = "InvalidIdentifier: not match <identifier> ::= <nondigit>{<nondigit>|<digit>}";
                     break;
                 case expresser::ErrInvalidInput:
                     name = "InvalidInput";
@@ -101,7 +108,7 @@ namespace fmt {
                     name = "InvalidNotEqual";
                     break;
                 case expresser::ErrInvalidParameter:
-                    name = "ErrInvalidParameter";
+                    name = "InvalidParameter";
                     break;
                 case expresser::ErrInvalidPrint:
                     name = "InvalidPrint";
@@ -119,19 +126,25 @@ namespace fmt {
                     name = "InvalidVariableDeclaration";
                     break;
                 case expresser::ErrInvalidVariableType:
-                    name = "ErrInvalidVariableType";
+                    name = "InvalidVariableType";
                     break;
                 case expresser::ErrIntegerOverflow:
                     name = "IntegerOverflow";
                     break;
                 case expresser::ErrMissingBrace:
-                    name = "ErrMissingBrace";
+                    name = "MissingBrace";
                     break;
                 case expresser::ErrMissingBracket:
-                    name = "ErrMissingBracket";
+                    name = "MissingBracket";
+                    break;
+                case expresser::ErrMissingRightQuote:
+                    name = "MissingRightQuote";
                     break;
                 case expresser::ErrNeedAssignSymbol:
                     name = "NeedAssignSymbol";
+                    break;
+                case expresser::ErrNeedFunctionName:
+                    name = "Need a function name in <function-call>";
                     break;
                 case expresser::ErrNeedIdentifier:
                     name = "NeedIdentifier";
@@ -139,11 +152,17 @@ namespace fmt {
                 case expresser::ErrNeedRelationalOperator:
                     name = "NeedRelationalOperator";
                     break;
+                case expresser::ErrNeedSemicolon:
+                    name = "NeedSemicolon";
+                    break;
+                case expresser::ErrNeedSemicolonOrComma:
+                    name = "NeedSemicolonOrComma";
+                    break;
                 case expresser::ErrNeedVariableType:
                     name = "NeedVariableType";
                     break;
-                case expresser::ErrNoSemicolon:
-                    name = "NoSemicolon";
+                case expresser::ErrNeedWhileInDoWhile:
+                    name = "NeedWhileInDoWhile";
                     break;
                 case expresser::ErrNotInitialized:
                     name = "NotInitialized";
@@ -156,6 +175,9 @@ namespace fmt {
                     break;
                 case expresser::ErrStreamError:
                     name = "StreamError";
+                    break;
+                case expresser::ErrUnknownEscapeCharacter:
+                    name = "UnknownEscapeCharacter";
                     break;
                 case expresser::ErrUndeclaredFunction:
                     name = "UndeclaredFunction";

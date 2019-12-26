@@ -347,7 +347,7 @@ namespace expresser {
                     // =
                     token = nextToken();
                     if (!token.has_value() || token->GetType() != ASSIGN)
-                        return errorFactory(ErrorCode::ErrInvalidAssignment);
+                        return errorFactory(ErrorCode::ErrNeedAssignSymbol);
 
                     // LOADA取地址
                     auto const_index = getIndex(identifier).first.value();
@@ -377,8 +377,8 @@ namespace expresser {
                         if (token->GetType() == COMMA)
                             continue;
                     }
-                    // 不是分号逗号、或者没值
-                    return errorFactory(ErrorCode::ErrInvalidAssignment);
+                    // 不是分号逗号、或者has_value为假
+                    return errorFactory(ErrorCode::ErrNeedSemicolonOrComma);
                 }
             } else if (token->GetType() == RESERVED && isVariableType(token.value())) {
                 // 超前扫描，确认是否是函数的声明
@@ -443,8 +443,8 @@ namespace expresser {
                             if (token->GetType() == COMMA)
                                 continue;
                         }
-                        // 不是分号逗号、或者没值
-                        return errorFactory(ErrorCode::ErrInvalidAssignment);
+                        // 不是分号逗号、或者has_value为假
+                        return errorFactory(ErrorCode::ErrNeedSemicolonOrComma);
                     } else
                         return errorFactory(ErrorCode::ErrInvalidAssignment);
                 }
@@ -478,7 +478,7 @@ namespace expresser {
             return {};
         }
         if (token->GetType() != TokenType::RESERVED || !isFunctionReturnType(token.value()))
-            return errorFactory(ErrorCode::ErrInvalidFunctionDeclaration);
+            return errorFactory(ErrorCode::ErrInvalidFunctionReturnType);
         auto type = stringTypeToTokenType(token->GetStringValue());
         if (!type.has_value())
             return errorFactory(ErrorCode::ErrInvalidFunctionReturnType);
@@ -655,8 +655,8 @@ namespace expresser {
                         if (token->GetType() == COMMA)
                             continue;
                     }
-                    // 不是分号逗号、或者没值
-                    return errorFactory(ErrorCode::ErrInvalidAssignment);
+                    // 不是分号逗号、或者has_value为假
+                    return errorFactory(ErrorCode::ErrNeedSemicolonOrComma);
                 }
             } else if (token->GetType() == RESERVED && isVariableType(token.value())) {
                 // var or func
@@ -716,7 +716,7 @@ namespace expresser {
                             if (token->GetType() == COMMA)
                                 continue;
                         }
-                        return errorFactory(ErrorCode::ErrInvalidAssignment);
+                        return errorFactory(ErrorCode::ErrNeedSemicolonOrComma);
                     } else
                         return errorFactory(ErrorCode::ErrInvalidAssignment);
                 }
@@ -962,7 +962,7 @@ namespace expresser {
                 return err.second.value();
             token = nextToken();
             if (!token.has_value() || token->GetStringValue() != "while")
-                return errorFactory(ErrorCode::ErrInvalidLoop);
+                return errorFactory(ErrorCode::ErrNeedWhileInDoWhile);
             token = nextToken();
             if (!token.has_value() || token->GetType() != LEFTBRACKET)
                 return errorFactory(ErrorCode::ErrMissingBracket);
@@ -975,7 +975,7 @@ namespace expresser {
                 return errorFactory(ErrorCode::ErrMissingBracket);
             token = nextToken();
             if (!token.has_value() || token->GetType() != SEMICOLON)
-                return errorFactory(ErrorCode::ErrNoSemicolon);
+                return errorFactory(ErrorCode::ErrNeedSemicolon);
             // 返回的是条件条件不符合时的跳转命令
             // 再反转一次
             operation = reverse_map.find(operation)->second;
@@ -1061,6 +1061,7 @@ namespace expresser {
                     return errorFactory(ErrorCode::ErrReturnInVoidFunction);
                 auto index = function._instructions.size();
                 function._instructions.emplace_back(Instruction(index, Operation::RET));
+                return {};
             }
             rollback();
             auto res = parseExpression(&function);
@@ -1078,7 +1079,7 @@ namespace expresser {
         // ;
         token = nextToken();
         if (!token.has_value() || token->GetType() != SEMICOLON)
-            return errorFactory(ErrorCode::ErrNoSemicolon);
+            return errorFactory(ErrorCode::ErrNeedSemicolon);
         return {};
     }
 
@@ -1102,7 +1103,7 @@ namespace expresser {
         // ';'
         token = nextToken();
         if (!token.has_value() || token->GetType() != SEMICOLON)
-            return errorFactory(ErrorCode::ErrNoSemicolon);
+            return errorFactory(ErrorCode::ErrNeedSemicolon);
         // 追加换行
         auto index = function._instructions.size();
         function._instructions.emplace_back(Instruction(index, Operation::PRINTL));
@@ -1223,7 +1224,7 @@ namespace expresser {
         // ';'
         token = nextToken();
         if (!token.has_value() || token->GetType() != SEMICOLON)
-            return errorFactory(ErrorCode::ErrNoSemicolon);
+            return errorFactory(ErrorCode::ErrNeedSemicolon);
 
         if (type == CHARLITERAL)
             function._instructions.emplace_back(Instruction(index + 1, Operation::CSCAN));
@@ -1276,7 +1277,7 @@ namespace expresser {
 
         token = nextToken();
         if (!token.has_value() || token->GetType() != ASSIGN)
-            return errorFactory(ErrorCode::ErrInvalidAssignment);
+            return errorFactory(ErrorCode::ErrNeedAssignSymbol);
 
         auto res = parseExpression(&function);
         if (res.second.has_value())
@@ -1289,7 +1290,7 @@ namespace expresser {
 
         token = nextToken();
         if (!token.has_value() || token->GetType() != SEMICOLON)
-            return errorFactory(ErrorCode::ErrNoSemicolon);
+            return errorFactory(ErrorCode::ErrNeedSemicolon);
 
         auto index = function._instructions.size();
         function._instructions.emplace_back(Instruction(index, Operation::ISTORE));
@@ -1537,10 +1538,10 @@ namespace expresser {
         // 无法在全局区调用函数
         TokenType return_type = VOID;
         if (function == nullptr)
-            return std::make_pair(std::optional<TokenType>(), errorFactory(ErrorCode::ErrInvalidFunctionCall));
+            return std::make_pair(std::optional<TokenType>(), errorFactory(ErrorCode::ErrCallFunctionInStartSection));
         auto token = nextToken();
         if (!token.has_value() || token->GetType() != IDENTIFIER)
-            return std::make_pair(std::optional<TokenType>(), errorFactory(ErrorCode::ErrInvalidFunctionCall));
+            return std::make_pair(std::optional<TokenType>(), errorFactory(ErrorCode::ErrNeedFunctionName));
         auto function_name = token->GetStringValue();
         token = nextToken();
         if (!token.has_value() || token->GetType() != LEFTBRACKET)
